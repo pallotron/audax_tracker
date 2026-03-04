@@ -1,0 +1,9 @@
+name = "audax-tracker-oauth"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+STRAVA_CLIENT_ID = ""
+
+# Secret: STRAVA_CLIENT_SECRET (set via `wrangler secret put`)
+# Secret: ALLOWED_ORIGIN (set via `wrangler secret put`)
