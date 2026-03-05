@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   checkAcp5000,
   checkAcp10000,
-  QualifyingActivity,
+  type QualifyingActivity,
 } from "../../qualification/tracker";
 
 function makeActivity(

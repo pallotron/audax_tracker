@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   classifyActivity,
-  RawActivity,
+  type RawActivity,
 } from "../../classification/classifier";
 
 function makeRaw(overrides: Partial<RawActivity> = {}): RawActivity {
