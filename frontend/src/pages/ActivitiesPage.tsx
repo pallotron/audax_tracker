@@ -1,9 +1,10 @@
 import { useMemo, useState, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, type Activity } from "../db/database";
+import { db, bulkConfirm, bulkSetType, type Activity } from "../db/database";
 import type { EventType } from "../db/types";
 import { useSync } from "../hooks/useSync";
 import { ActivityRow } from "../components/ActivityRow";
+import { BulkActionBar } from "../components/BulkActionBar";
 import { ClassificationLegend } from "../components/EventTypeBadge";
 
 const AUDAX_EVENT_TYPES: NonNullable<EventType>[] = [
@@ -55,6 +56,7 @@ export default function ActivitiesPage() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [page, setPage] = useState(0);
   const pageSize = 50;
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const activities = useLiveQuery(
     () => db.activities.orderBy("date").reverse().toArray(),
@@ -120,6 +122,45 @@ export default function ActivitiesPage() {
     });
     resetPage();
   }, []);
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      const allFilteredIds = filtered.map((a) => a.stravaId);
+      const allSelected = allFilteredIds.every((id) => prev.has(id));
+      if (allSelected) {
+        const next = new Set(prev);
+        for (const id of allFilteredIds) next.delete(id);
+        return next;
+      } else {
+        const next = new Set(prev);
+        for (const id of allFilteredIds) next.add(id);
+        return next;
+      }
+    });
+  }, [filtered]);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  const handleBulkConfirm = useCallback(async () => {
+    await bulkConfirm(Array.from(selectedIds));
+    setSelectedIds(new Set());
+  }, [selectedIds]);
+
+  const handleBulkSetType = useCallback(async (eventType: EventType) => {
+    await bulkSetType(Array.from(selectedIds), eventType);
+    setSelectedIds(new Set());
+  }, [selectedIds]);
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((a) => selectedIds.has(a.stravaId));
+  const someFilteredSelected = filtered.some((a) => selectedIds.has(a.stravaId));
 
   return (
     <div className="space-y-4">
@@ -268,6 +309,17 @@ export default function ActivitiesPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-3 py-2 w-10">
+                  <input
+                    type="checkbox"
+                    checked={allFilteredSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = someFilteredSelected && !allFilteredSelected;
+                    }}
+                    onChange={toggleSelectAll}
+                    className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                  />
+                </th>
                 {([
                   ["date", "Date", "text-left"],
                   ["name", "Name", "text-left"],
@@ -296,7 +348,12 @@ export default function ActivitiesPage() {
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
               {paged.map((a) => (
-                <ActivityRow key={a.stravaId} activity={a} />
+                <ActivityRow
+                  key={a.stravaId}
+                  activity={a}
+                  selected={selectedIds.has(a.stravaId)}
+                  onToggle={toggleSelect}
+                />
               ))}
             </tbody>
           </table>
@@ -328,6 +385,13 @@ export default function ActivitiesPage() {
           </div>
         </div>
       )}
+
+      <BulkActionBar
+        selectedCount={selectedIds.size}
+        onConfirm={handleBulkConfirm}
+        onSetType={handleBulkSetType}
+        onClear={clearSelection}
+      />
     </div>
   );
 }
