@@ -55,6 +55,7 @@ export function mapStravaActivity(raw: StravaActivityResponse): Activity {
     needsConfirmation: classification?.needsConfirmation ?? false,
     manualOverride: false,
     homologationNumber: null,
+    dnf: classification?.dnf ?? false,
   };
 }
 

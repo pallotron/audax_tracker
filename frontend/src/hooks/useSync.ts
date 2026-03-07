@@ -44,6 +44,7 @@ export function useSync() {
               classificationSource: existing.classificationSource,
               manualOverride: true,
               homologationNumber: existing.homologationNumber,
+              dnf: existing.dnf,
             });
           } else {
             await db.activities.put(activity);

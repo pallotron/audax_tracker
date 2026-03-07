@@ -15,6 +15,7 @@ function makeActivity(
     distance: 200,
     elevationGain: 1000,
     eventType: "BRM200",
+    dnf: false,
     ...overrides,
   };
 }

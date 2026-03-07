@@ -28,6 +28,7 @@ describe("mapStravaActivity", () => {
     expect(result.needsConfirmation).toBe(false);
     expect(result.manualOverride).toBe(false);
     expect(result.homologationNumber).toBeNull();
+    expect(result.dnf).toBe(false);
   });
 });
 

@@ -20,6 +20,7 @@ describe("Activity database", () => {
     needsConfirmation: false,
     manualOverride: false,
     homologationNumber: null,
+    dnf: false,
   };
 
   it("should add and retrieve an activity", async () => {
@@ -94,6 +95,7 @@ describe("Bulk operations", () => {
     needsConfirmation: true,
     manualOverride: false,
     homologationNumber: null,
+    dnf: false,
     ...overrides,
   });
 

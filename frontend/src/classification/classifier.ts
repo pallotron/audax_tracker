@@ -10,6 +10,7 @@ export interface ClassificationResult {
   eventType: EventType;
   classificationSource: ClassificationSource;
   needsConfirmation: boolean;
+  dnf: boolean;
 }
 
 interface NamePattern {
@@ -56,6 +57,25 @@ const DISTANCE_RANGES: DistanceRange[] = [
   { minKm: 195, maxKm: 279, eventType: "BRM200" },
 ];
 
+const MINIMUM_DISTANCE_KM: Partial<Record<NonNullable<EventType>, number>> = {
+  BRM200: 200,
+  BRM300: 300,
+  BRM400: 400,
+  BRM600: 600,
+  BRM1000: 1000,
+  PBP: 1200,
+  "RM1200+": 1200,
+};
+
+function detectDnf(name: string, eventType: EventType, distanceKm: number): boolean {
+  if (/\bdnf\b/i.test(name)) return true;
+  if (eventType && eventType in MINIMUM_DISTANCE_KM) {
+    const minKm = MINIMUM_DISTANCE_KM[eventType as NonNullable<EventType>]!;
+    if (distanceKm < minKm * 0.9) return true;
+  }
+  return false;
+}
+
 export function classifyActivity(
   raw: RawActivity
 ): ClassificationResult | null {
@@ -64,14 +84,16 @@ export function classifyActivity(
   for (const { pattern, eventType, minDistanceKm } of NAME_PATTERNS) {
     if (pattern.test(raw.name)) {
       if (minDistanceKm && distanceKm < minDistanceKm) continue;
-      return { eventType, classificationSource: "auto-name", needsConfirmation: false };
+      const dnf = detectDnf(raw.name, eventType, distanceKm);
+      return { eventType, classificationSource: "auto-name", needsConfirmation: false, dnf };
     }
   }
 
   // Check distance ranges
   for (const { minKm, maxKm, eventType } of DISTANCE_RANGES) {
     if (distanceKm >= minKm && distanceKm <= maxKm) {
-      return { eventType, classificationSource: "auto-distance", needsConfirmation: true };
+      const dnf = detectDnf(raw.name, eventType, distanceKm);
+      return { eventType, classificationSource: "auto-distance", needsConfirmation: true, dnf };
     }
   }
 

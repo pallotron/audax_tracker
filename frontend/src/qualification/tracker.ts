@@ -7,6 +7,7 @@ export interface QualifyingActivity {
   distance: number; // km
   elevationGain: number; // meters
   eventType: EventType;
+  dnf: boolean;
 }
 
 export interface Requirement {
@@ -271,7 +272,7 @@ function findExpiringEvents(
 export function checkAcp5000(
   activities: QualifyingActivity[]
 ): Acp5000Status {
-  const windowActivities = findBestWindow(activities, 4);
+  const windowActivities = findBestWindow(activities.filter((a) => !a.dnf), 4);
   const totalKm = windowActivities.reduce((sum, a) => sum + a.distance, 0);
 
   const series = checkBrmSeries(windowActivities);
@@ -390,7 +391,7 @@ const MOUNTAIN_600_ELEVATION = 8000; // meters
 export function checkAcp10000(
   activities: QualifyingActivity[]
 ): Acp10000Status {
-  const windowActivities = findBestWindow(activities, 6);
+  const windowActivities = findBestWindow(activities.filter((a) => !a.dnf), 6);
   const totalKm = windowActivities.reduce((sum, a) => sum + a.distance, 0);
 
   const sortedByDate = [...windowActivities].sort(

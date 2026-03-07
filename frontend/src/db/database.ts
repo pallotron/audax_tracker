@@ -16,6 +16,7 @@ export interface Activity {
   needsConfirmation: boolean;
   manualOverride: boolean;
   homologationNumber: string | null;
+  dnf: boolean;
 }
 
 export const db = new Dexie("AudaxTracker") as Dexie & {
@@ -32,6 +33,16 @@ db.version(2).stores({
   return tx.table("activities").toCollection().modify(activity => {
     if (activity.needsConfirmation === undefined) {
       activity.needsConfirmation = activity.classificationSource === "auto-distance";
+    }
+  });
+});
+
+db.version(3).stores({
+  activities: "stravaId, date, eventType, type",
+}).upgrade(tx => {
+  return tx.table("activities").toCollection().modify(activity => {
+    if (activity.dnf === undefined) {
+      activity.dnf = false;
     }
   });
 });
@@ -54,15 +65,18 @@ export async function reclassifyAll(): Promise<number> {
       const newType = result?.eventType ?? null;
       const newSource = result?.classificationSource ?? "manual";
       const newConfirm = result?.needsConfirmation ?? false;
+      const newDnf = result?.dnf ?? false;
       if (
         activity.eventType !== newType ||
         activity.classificationSource !== newSource ||
-        activity.needsConfirmation !== newConfirm
+        activity.needsConfirmation !== newConfirm ||
+        activity.dnf !== newDnf
       ) {
         await db.activities.update(activity.stravaId, {
           eventType: newType,
           classificationSource: newSource,
           needsConfirmation: newConfirm,
+          dnf: newDnf,
         });
         updated++;
       }
@@ -93,6 +107,15 @@ export async function bulkSetType(ids: string[], eventType: EventType): Promise<
         needsConfirmation: false,
         classificationSource: "manual",
       });
+    }
+  });
+}
+
+export async function bulkSetDnf(ids: string[], dnf: boolean): Promise<void> {
+  if (ids.length === 0) return;
+  await db.transaction("rw", db.activities, async () => {
+    for (const id of ids) {
+      await db.activities.update(id, { dnf, manualOverride: true });
     }
   });
 }

@@ -21,10 +21,11 @@ interface BulkActionBarProps {
   selectedCount: number;
   onConfirm: () => void;
   onSetType: (eventType: EventType) => void;
+  onSetDnf: (dnf: boolean) => void;
   onClear: () => void;
 }
 
-export function BulkActionBar({ selectedCount, onConfirm, onSetType, onClear }: BulkActionBarProps) {
+export function BulkActionBar({ selectedCount, onConfirm, onSetType, onSetDnf, onClear }: BulkActionBarProps) {
   const [bulkEventType, setBulkEventType] = useState<EventType>("BRM200");
 
   if (selectedCount === 0) return null;
@@ -62,6 +63,18 @@ export function BulkActionBar({ selectedCount, onConfirm, onSetType, onClear }: 
             Set Type
           </button>
         </div>
+        <button
+          onClick={() => onSetDnf(true)}
+          className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
+        >
+          😢 Mark DNF
+        </button>
+        <button
+          onClick={() => onSetDnf(false)}
+          className="rounded-md bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-700"
+        >
+          Clear DNF
+        </button>
         <button
           onClick={onClear}
           className="rounded-md bg-gray-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-500"

@@ -109,6 +109,40 @@ describe("classifyActivity", () => {
     });
   });
 
+  describe("DNF detection", () => {
+    it("detects DNF from name containing 'DNF'", () => {
+      const result = classifyActivity(makeRaw({ name: "BRM 400 DNF", distance: 320_000 }));
+      expect(result).not.toBeNull();
+      expect(result!.dnf).toBe(true);
+    });
+
+    it("detects DNF when distance is significantly short of BRM minimum", () => {
+      // BRM400 classified by name but only 250km ridden (< 90% of 400)
+      const result = classifyActivity(makeRaw({ name: "BRM 400", distance: 250_000 }));
+      expect(result).not.toBeNull();
+      expect(result!.dnf).toBe(true);
+    });
+
+    it("does not mark DNF when distance is close to minimum (≥90%)", () => {
+      // BRM200 classified by name, 185km ridden (≥90% of 200)
+      const result = classifyActivity(makeRaw({ name: "BRM 200", distance: 185_000 }));
+      expect(result).not.toBeNull();
+      expect(result!.dnf).toBe(false);
+    });
+
+    it("does not mark DNF for normal completed ride", () => {
+      const result = classifyActivity(makeRaw({ name: "BRM 600", distance: 615_000 }));
+      expect(result).not.toBeNull();
+      expect(result!.dnf).toBe(false);
+    });
+
+    it("DNF detection is case-insensitive", () => {
+      const result = classifyActivity(makeRaw({ name: "Audax 300 dnf", distance: 300_000 }));
+      expect(result).not.toBeNull();
+      expect(result!.dnf).toBe(true);
+    });
+  });
+
   describe("priority", () => {
     it("should prioritize name over distance", () => {
       const result = classifyActivity(

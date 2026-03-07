@@ -22,6 +22,7 @@ function toQualifyingActivities(activities: Activity[]): QualifyingActivity[] {
       distance: a.distance,
       elevationGain: a.elevationGain,
       eventType: a.eventType!,
+      dnf: a.dnf,
     }));
 }
 

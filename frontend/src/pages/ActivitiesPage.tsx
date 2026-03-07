@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, bulkConfirm, bulkSetType, type Activity } from "../db/database";
+import { db, bulkConfirm, bulkSetType, bulkSetDnf, type Activity } from "../db/database";
 import type { EventType } from "../db/types";
 import { useSync } from "../hooks/useSync";
 import { ActivityRow } from "../components/ActivityRow";
@@ -52,6 +52,7 @@ export default function ActivitiesPage() {
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
   const [audaxOnly, setAudaxOnly] = useState(false);
   const [needsConfirmOnly, setNeedsConfirmOnly] = useState(false);
+  const [dnfOnly, setDnfOnly] = useState(false);
   const [textFilter, setTextFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -87,6 +88,7 @@ export default function ActivitiesPage() {
         const typeKey = a.eventType ?? "__null__";
         if (!selectedTypes.has(typeKey)) return false;
       }
+      if (dnfOnly && !a.dnf) return false;
       if (textFilter) {
         const q = textFilter.toLowerCase();
         if (!a.name.toLowerCase().includes(q)) return false;
@@ -100,7 +102,7 @@ export default function ActivitiesPage() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return result;
-  }, [activities, yearFilter, selectedTypes, audaxOnly, needsConfirmOnly, textFilter, sortKey, sortDir]);
+  }, [activities, yearFilter, selectedTypes, audaxOnly, needsConfirmOnly, dnfOnly, textFilter, sortKey, sortDir]);
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
@@ -161,6 +163,11 @@ export default function ActivitiesPage() {
 
   const handleBulkSetType = useCallback(async (eventType: EventType) => {
     await bulkSetType(Array.from(selectedIds), eventType);
+    setSelectedIds(new Set());
+  }, [selectedIds]);
+
+  const handleBulkSetDnf = useCallback(async (dnf: boolean) => {
+    await bulkSetDnf(Array.from(selectedIds), dnf);
     setSelectedIds(new Set());
   }, [selectedIds]);
 
@@ -267,6 +274,15 @@ export default function ActivitiesPage() {
               className="rounded border-gray-300 text-yellow-500 focus:ring-yellow-400"
             />
             Needs confirmation
+          </label>
+          <label className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={dnfOnly}
+              onChange={(e) => { setDnfOnly(e.target.checked); resetPage(); }}
+              className="rounded border-gray-300 text-red-500 focus:ring-red-400"
+            />
+            😢 DNF only
           </label>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -404,6 +420,7 @@ export default function ActivitiesPage() {
         selectedCount={selectedIds.size}
         onConfirm={handleBulkConfirm}
         onSetType={handleBulkSetType}
+        onSetDnf={handleBulkSetDnf}
         onClear={clearSelection}
       />
     </div>

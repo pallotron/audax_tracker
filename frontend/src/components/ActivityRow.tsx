@@ -37,6 +37,7 @@ export function ActivityRow({ activity, selected, onToggle }: ActivityRowProps) 
   const [homologation, setHomologation] = useState(
     activity.homologationNumber ?? ""
   );
+  const [dnf, setDnf] = useState(activity.dnf);
 
   const handleSave = async () => {
     await db.activities.update(activity.stravaId, {
@@ -44,6 +45,7 @@ export function ActivityRow({ activity, selected, onToggle }: ActivityRowProps) 
       homologationNumber: homologation || null,
       manualOverride: true,
       classificationSource: "manual",
+      dnf,
     });
     setEditing(false);
   };
@@ -51,6 +53,7 @@ export function ActivityRow({ activity, selected, onToggle }: ActivityRowProps) 
   const handleCancel = () => {
     setEventType(activity.eventType);
     setHomologation(activity.homologationNumber ?? "");
+    setDnf(activity.dnf);
     setEditing(false);
   };
 
@@ -109,6 +112,7 @@ export function ActivityRow({ activity, selected, onToggle }: ActivityRowProps) 
             eventType={activity.eventType}
             source={activity.classificationSource}
             needsConfirmation={activity.needsConfirmation && !activity.manualOverride}
+            dnf={activity.dnf}
           />
         )}
       </td>
@@ -127,7 +131,16 @@ export function ActivityRow({ activity, selected, onToggle }: ActivityRowProps) 
       </td>
       <td className="whitespace-nowrap px-3 py-2 text-sm">
         {editing ? (
-          <span className="inline-flex gap-1">
+          <span className="inline-flex items-center gap-2">
+            <label className="inline-flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={dnf}
+                onChange={(e) => setDnf(e.target.checked)}
+                className="rounded border-gray-300 text-red-500 focus:ring-red-400"
+              />
+              😢 DNF
+            </label>
             <button
               onClick={handleSave}
               className="rounded bg-green-600 px-2 py-0.5 text-xs text-white hover:bg-green-700"

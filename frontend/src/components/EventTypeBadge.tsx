@@ -4,6 +4,7 @@ interface EventTypeBadgeProps {
   eventType: EventType;
   source: ClassificationSource;
   needsConfirmation?: boolean;
+  dnf?: boolean;
 }
 
 const badgeColors: Record<string, string> = {
@@ -43,11 +44,15 @@ export function ClassificationLegend() {
         <span className="inline-block rounded-full px-1.5 py-0.5 text-xs ring-2 ring-yellow-400 bg-gray-100">?</span>
         <span>Needs confirmation</span>
       </span>
+      <span className="inline-flex items-center gap-1">
+        <span>😢</span>
+        <span>DNF</span>
+      </span>
     </div>
   );
 }
 
-export function EventTypeBadge({ eventType, source, needsConfirmation }: EventTypeBadgeProps) {
+export function EventTypeBadge({ eventType, source, needsConfirmation, dnf }: EventTypeBadgeProps) {
   if (eventType === null) {
     return <span className="text-gray-400">-</span>;
   }
@@ -66,6 +71,7 @@ export function EventTypeBadge({ eventType, source, needsConfirmation }: EventTy
       <span className="text-xs cursor-help" title={SOURCE_LABELS[source].title}>
         {SOURCE_LABELS[source].icon}
       </span>
+      {dnf && <span className="text-sm cursor-help" title="Did Not Finish">😢</span>}
     </span>
   );
 }
