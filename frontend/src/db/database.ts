@@ -17,6 +17,7 @@ export interface Activity {
   manualOverride: boolean;
   homologationNumber: string | null;
   dnf: boolean;
+  sourceUrl: string;
 }
 
 export const db = new Dexie("AudaxTracker") as Dexie & {
@@ -54,6 +55,17 @@ db.version(4).stores({
   return tx.table("activities").toCollection().modify(activity => {
     if (/\bdnf\b/i.test(activity.name)) {
       activity.dnf = true;
+    }
+  });
+});
+
+db.version(5).stores({
+  activities: "stravaId, date, eventType, type",
+}).upgrade(tx => {
+  // Backfill sourceUrl for existing Strava activities
+  return tx.table("activities").toCollection().modify(activity => {
+    if (!activity.sourceUrl) {
+      activity.sourceUrl = `https://www.strava.com/activities/${activity.stravaId}`;
     }
   });
 });

@@ -21,6 +21,7 @@ describe("Activity database", () => {
     manualOverride: false,
     homologationNumber: null,
     dnf: false,
+    sourceUrl: "https://www.strava.com/activities/12345",
   };
 
   it("should add and retrieve an activity", async () => {
@@ -96,6 +97,7 @@ describe("Bulk operations", () => {
     manualOverride: false,
     homologationNumber: null,
     dnf: false,
+    sourceUrl: `https://www.strava.com/activities/${id}`,
     ...overrides,
   });
 

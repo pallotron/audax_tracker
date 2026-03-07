@@ -56,6 +56,7 @@ export function mapStravaActivity(raw: StravaActivityResponse): Activity {
     manualOverride: false,
     homologationNumber: null,
     dnf: classification?.dnf ?? false,
+    sourceUrl: `https://www.strava.com/activities/${raw.id}`,
   };
 }
 

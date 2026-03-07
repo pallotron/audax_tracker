@@ -29,6 +29,7 @@ describe("mapStravaActivity", () => {
     expect(result.manualOverride).toBe(false);
     expect(result.homologationNumber).toBeNull();
     expect(result.dnf).toBe(false);
+    expect(result.sourceUrl).toBe("https://www.strava.com/activities/12345");
   });
 });
 

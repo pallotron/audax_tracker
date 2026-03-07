@@ -76,7 +76,14 @@ export function ActivityRow({ activity, selected, onToggle }: ActivityRowProps) 
         {date.toLocaleDateString()}
       </td>
       <td className="max-w-xs truncate px-3 py-2 text-sm text-gray-900">
-        {activity.name}
+        <a
+          href={activity.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-orange-600 hover:underline"
+        >
+          {activity.name}
+        </a>
       </td>
       <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-600 text-right">
         {Math.round(activity.distance)}
