@@ -52,6 +52,7 @@ export default function ActivitiesPage() {
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
   const [audaxOnly, setAudaxOnly] = useState(false);
   const [needsConfirmOnly, setNeedsConfirmOnly] = useState(false);
+  const [textFilter, setTextFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [page, setPage] = useState(0);
@@ -86,6 +87,10 @@ export default function ActivitiesPage() {
         const typeKey = a.eventType ?? "__null__";
         if (!selectedTypes.has(typeKey)) return false;
       }
+      if (textFilter) {
+        const q = textFilter.toLowerCase();
+        if (!a.name.toLowerCase().includes(q)) return false;
+      }
       return true;
     });
     result.sort((a, b) => {
@@ -95,7 +100,7 @@ export default function ActivitiesPage() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return result;
-  }, [activities, yearFilter, selectedTypes, audaxOnly, needsConfirmOnly, sortKey, sortDir]);
+  }, [activities, yearFilter, selectedTypes, audaxOnly, needsConfirmOnly, textFilter, sortKey, sortDir]);
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
@@ -220,6 +225,15 @@ export default function ActivitiesPage() {
       {/* Filters */}
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-4">
+          <div>
+            <input
+              type="text"
+              value={textFilter}
+              onChange={(e) => { setTextFilter(e.target.value); resetPage(); }}
+              placeholder="Filter by name…"
+              className="rounded border border-gray-300 px-2 py-1 text-sm focus:border-orange-500 focus:ring-orange-500"
+            />
+          </div>
           <div>
             <label htmlFor="year-filter" className="mr-2 text-sm font-medium text-gray-700">
               Year:
