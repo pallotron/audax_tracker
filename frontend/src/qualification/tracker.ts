@@ -8,6 +8,7 @@ export interface QualifyingActivity {
   elevationGain: number; // meters
   eventType: EventType;
   dnf: boolean;
+  sourceUrl: string;
 }
 
 export interface Requirement {
@@ -37,6 +38,7 @@ export interface ExpiringEvent {
   date: Date;
   expiresAt: Date;
   affects: ("R5000" | "R10000")[];
+  sourceUrl: string;
 }
 
 export interface Acp5000Status {
@@ -256,6 +258,7 @@ function findExpiringEvents(
         date: new Date(activity.date),
         expiresAt,
         affects: [affects],
+        sourceUrl: activity.sourceUrl,
       });
     }
   }

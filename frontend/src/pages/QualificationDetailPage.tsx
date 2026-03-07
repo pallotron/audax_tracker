@@ -23,6 +23,7 @@ function toQualifyingActivities(activities: Activity[]): QualifyingActivity[] {
       elevationGain: a.elevationGain,
       eventType: a.eventType!,
       dnf: a.dnf,
+      sourceUrl: a.sourceUrl,
     }));
 }
 
@@ -73,7 +74,9 @@ function RequirementCard({ label, requirement }: RequirementCardProps) {
               <p key={a.stravaId} className="text-xs text-gray-400">
                 <span className="font-medium text-gray-500">{a.eventType}</span>
                 {" — "}
-                <span className="truncate">{a.name}</span>
+                <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 hover:underline">
+                  {a.name}
+                </a>
                 {" "}
                 <span>({new Date(a.date).toLocaleDateString()})</span>
                 {" · "}
@@ -137,13 +140,13 @@ export default function QualificationDetailPage() {
   const BRM_DISTANCES = ["BRM200", "BRM300", "BRM400", "BRM600", "BRM1000"] as const;
   const latestPerBrmDistance = BRM_DISTANCES.map((dist) => {
     const match = tableActivities.find((a) => a.eventType === dist);
-    return match ? { distance: dist, name: match.name, date: new Date(match.date) } : null;
-  }).filter(Boolean) as { distance: string; name: string; date: Date }[];
+    return match ? { distance: dist, name: match.name, date: new Date(match.date), sourceUrl: match.sourceUrl } : null;
+  }).filter(Boolean) as { distance: string; name: string; date: Date; sourceUrl: string }[];
 
   // For timeline: find the most recent ride for single-event requirements
   const findLatestForType = (eventType: string) => {
     const match = tableActivities.find((a) => a.eventType === eventType);
-    return match ? { name: match.name, date: new Date(match.date) } : null;
+    return match ? { name: match.name, date: new Date(match.date), sourceUrl: match.sourceUrl } : null;
   };
 
   // Build requirements list
@@ -240,7 +243,14 @@ export default function QualificationDetailPage() {
             {status.expiringEvents.map((ev: ExpiringEvent) => (
               <li key={ev.stravaId} className="flex items-center gap-2 text-sm text-yellow-700">
                 <span className="font-medium">{ev.eventType}</span>
-                <span className="truncate max-w-xs">{ev.name}</span>
+                <a
+                  href={ev.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="truncate max-w-xs hover:text-yellow-900 hover:underline"
+                >
+                  {ev.name}
+                </a>
                 <span>({ev.date.toLocaleDateString()})</span>
                 <span className="text-yellow-600">
                   — expires {ev.expiresAt.toLocaleDateString()}
@@ -283,7 +293,7 @@ export default function QualificationDetailPage() {
                           const m = tableActivities.find(
                             (a) => a.eventType === "BRM600" && a.elevationGain >= 8000,
                           );
-                          return m ? { name: m.name, date: new Date(m.date) } : null;
+                          return m ? { name: m.name, date: new Date(m.date), sourceUrl: m.sourceUrl } : null;
                         })()
                       : null;
                     const singleRide = pbpRide ?? flecheRide ?? rm1200Ride ?? mountain600Ride;
@@ -304,14 +314,21 @@ export default function QualificationDetailPage() {
                           <div className="ml-28 mt-1 space-y-0.5">
                             {latestPerBrmDistance.map((d) => (
                               <p key={d.distance} className="text-xs text-gray-400">
-                                {d.distance}: {d.name} ({d.date.toLocaleDateString()})
+                                {d.distance}:{" "}
+                                <a href={d.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 hover:underline">
+                                  {d.name}
+                                </a>
+                                {" "}({d.date.toLocaleDateString()})
                               </p>
                             ))}
                           </div>
                         )}
                         {singleRide && (
                           <p className="ml-28 mt-1 text-xs text-gray-400">
-                            {singleRide.name} ({singleRide.date.toLocaleDateString()})
+                            <a href={singleRide.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 hover:underline">
+                              {singleRide.name}
+                            </a>
+                            {" "}({singleRide.date.toLocaleDateString()})
                           </p>
                         )}
                       </div>
@@ -373,7 +390,14 @@ export default function QualificationDetailPage() {
                       {new Date(activity.date).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900">
-                      {activity.name}
+                      <a
+                        href={activity.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-orange-600 hover:underline"
+                      >
+                        {activity.name}
+                      </a>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-900">
                       {Math.round(activity.distance)}

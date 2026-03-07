@@ -8,14 +8,16 @@ import {
 function makeActivity(
   overrides: Partial<QualifyingActivity> = {}
 ): QualifyingActivity {
+  const id = Math.random().toString(36).slice(2);
   return {
-    stravaId: Math.random().toString(36).slice(2),
+    stravaId: id,
     name: "Test Ride",
     date: "2025-06-01",
     distance: 200,
     elevationGain: 1000,
     eventType: "BRM200",
     dnf: false,
+    sourceUrl: `https://www.strava.com/activities/${id}`,
     ...overrides,
   };
 }
