@@ -5,6 +5,8 @@ import { EventTypeBadge } from "./EventTypeBadge";
 
 interface ActivityRowProps {
   activity: Activity;
+  selected: boolean;
+  onToggle: (stravaId: string) => void;
 }
 
 const EVENT_TYPE_OPTIONS: EventType[] = [
@@ -29,7 +31,7 @@ function formatDuration(seconds: number): string {
   return `${h}h ${String(m).padStart(2, "0")}m`;
 }
 
-export function ActivityRow({ activity }: ActivityRowProps) {
+export function ActivityRow({ activity, selected, onToggle }: ActivityRowProps) {
   const [editing, setEditing] = useState(false);
   const [eventType, setEventType] = useState<EventType>(activity.eventType);
   const [homologation, setHomologation] = useState(
@@ -59,6 +61,14 @@ export function ActivityRow({ activity }: ActivityRowProps) {
 
   return (
     <tr className="hover:bg-gray-50">
+      <td className="whitespace-nowrap px-3 py-2">
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={() => onToggle(activity.stravaId)}
+          className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+        />
+      </td>
       <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-900">
         {date.toLocaleDateString()}
       </td>
