@@ -58,13 +58,28 @@ function RequirementCard({ label, requirement }: RequirementCardProps) {
           <circle cx="12" cy="12" r="9" />
         </svg>
       )}
-      <div>
+      <div className="min-w-0">
         <p className="font-medium text-gray-900">{label}</p>
         <p className="text-sm text-gray-500">{requirement.details}</p>
         {requirement.completedDate && (
           <p className="text-xs text-gray-400">
             Completed: {requirement.completedDate.toLocaleDateString()}
           </p>
+        )}
+        {requirement.matchingActivities.length > 0 && (
+          <div className="mt-2 space-y-0.5">
+            {requirement.matchingActivities.map((a) => (
+              <p key={a.stravaId} className="text-xs text-gray-400">
+                <span className="font-medium text-gray-500">{a.eventType}</span>
+                {" — "}
+                <span className="truncate">{a.name}</span>
+                {" "}
+                <span>({new Date(a.date).toLocaleDateString()})</span>
+                {" · "}
+                <span>{Math.round(a.distance)} km</span>
+              </p>
+            ))}
+          </div>
         )}
       </div>
     </div>

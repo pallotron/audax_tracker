@@ -13,6 +13,7 @@ export interface Requirement {
   met: boolean;
   details: string;
   completedDate: Date | null;
+  matchingActivities: QualifyingActivity[];
 }
 
 export interface BrmSeriesRequirement extends Requirement {
@@ -292,10 +293,24 @@ export function checkAcp5000(
       }
     }
   }
+  // Collect one activity per BRM distance for the series
+  const brmSeriesActivities: QualifyingActivity[] = [];
+  const seenDistances = new Set<EventType>();
+  const sortedForBrm = [...windowActivities].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+  for (const a of sortedForBrm) {
+    if (a.eventType && BRM_DISTANCES.includes(a.eventType) && !seenDistances.has(a.eventType)) {
+      seenDistances.add(a.eventType);
+      brmSeriesActivities.push(a);
+    }
+  }
+
   const brmSeries: BrmSeriesRequirement = {
     met: series.met,
     missing: series.missing,
     completedDate: brmSeriesCompletedDate,
+    matchingActivities: brmSeriesActivities,
     details: series.met
       ? "Complete BRM series (200+300+400+600+1000)"
       : `Missing BRM distances: ${series.missing.join(", ")}`,
@@ -308,6 +323,7 @@ export function checkAcp5000(
   const pbp: Requirement = {
     met: hasPbp,
     completedDate: hasPbp ? new Date(pbpActivity.date) : null,
+    matchingActivities: pbpActivity ? [pbpActivity] : [],
     details: hasPbp ? "PBP completed" : "PBP required",
   };
 
@@ -318,6 +334,7 @@ export function checkAcp5000(
   const fleche: Requirement = {
     met: hasFleche,
     completedDate: hasFleche ? new Date(flecheActivity.date) : null,
+    matchingActivities: flecheActivity ? [flecheActivity] : [],
     details: hasFleche ? "Flèche completed" : "Flèche required",
   };
 
@@ -340,6 +357,7 @@ export function checkAcp5000(
   const distance: DistanceRequirement = {
     met: totalKm >= targetKm,
     completedDate: distanceCompletedDate,
+    matchingActivities: windowActivities,
     currentKm: totalKm,
     targetKm,
     details:
@@ -394,10 +412,24 @@ export function checkAcp10000(
       }
     }
   }
+  // Collect up to 2 activities per BRM distance for the 2x series
+  const twoBrmActivities: QualifyingActivity[] = [];
+  const distCounts = new Map<string, number>();
+  for (const a of sortedByDate) {
+    if (a.eventType && BRM_DISTANCES.includes(a.eventType)) {
+      const count = distCounts.get(a.eventType) ?? 0;
+      if (count < 2) {
+        twoBrmActivities.push(a);
+        distCounts.set(a.eventType, count + 1);
+      }
+    }
+  }
+
   const twoBrmSeries: TwoBrmSeriesRequirement = {
     met: seriesCount >= 2,
     seriesCount,
     completedDate: twoSeriesDate,
+    matchingActivities: twoBrmActivities,
     details:
       seriesCount >= 2
         ? `${seriesCount} complete BRM series`
@@ -408,6 +440,7 @@ export function checkAcp10000(
   const pbp: Requirement = {
     met: !!pbpActivity,
     completedDate: pbpActivity ? new Date(pbpActivity.date) : null,
+    matchingActivities: pbpActivity ? [pbpActivity] : [],
     details: pbpActivity ? "PBP completed" : "PBP required",
   };
 
@@ -415,6 +448,7 @@ export function checkAcp10000(
   const separateRm1200: Requirement = {
     met: !!rm1200Activity,
     completedDate: rm1200Activity ? new Date(rm1200Activity.date) : null,
+    matchingActivities: rm1200Activity ? [rm1200Activity] : [],
     details: rm1200Activity
       ? "Separate RM1200+ completed"
       : "Separate RM1200+ required (distinct from PBP)",
@@ -428,6 +462,7 @@ export function checkAcp10000(
   const mountain600: Requirement = {
     met: !!mountain600Activity,
     completedDate: mountain600Activity ? new Date(mountain600Activity.date) : null,
+    matchingActivities: mountain600Activity ? [mountain600Activity] : [],
     details: mountain600Activity
       ? "Mountain 600 completed (8000m+ elevation)"
       : "Mountain 600 required (BRM600 with 8000m+ elevation)",
@@ -437,6 +472,7 @@ export function checkAcp10000(
   const fleche: Requirement = {
     met: !!flecheActivity,
     completedDate: flecheActivity ? new Date(flecheActivity.date) : null,
+    matchingActivities: flecheActivity ? [flecheActivity] : [],
     details: flecheActivity ? "Flèche completed" : "Flèche required",
   };
 
@@ -455,6 +491,7 @@ export function checkAcp10000(
   const distance: DistanceRequirement = {
     met: totalKm >= targetKm,
     completedDate: distanceCompletedDate,
+    matchingActivities: windowActivities,
     currentKm: totalKm,
     targetKm,
     details:
