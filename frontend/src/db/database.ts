@@ -48,13 +48,15 @@ db.version(3).stores({
 });
 
 /**
- * Re-run the classifier on all non-manually-overridden activities.
+ * Re-run the classifier on all activities.
+ * - For non-manually-overridden activities: updates eventType, classificationSource, needsConfirmation, and dnf.
+ * - For manually-overridden activities: only updates dnf (manualOverride protects event type, not DNF status).
  * Call at app startup so classifier rule changes take effect without re-syncing.
  */
 export async function reclassifyAll(): Promise<number> {
   let updated = 0;
   await db.transaction("rw", db.activities, async () => {
-    const all = await db.activities.filter((a) => !a.manualOverride).toArray();
+    const all = await db.activities.toArray();
     for (const activity of all) {
       const distanceMeters = activity.distance * 1000; // stored as km
       const result = classifyActivity({
@@ -62,23 +64,32 @@ export async function reclassifyAll(): Promise<number> {
         distance: distanceMeters,
         elevationGain: activity.elevationGain,
       });
-      const newType = result?.eventType ?? null;
-      const newSource = result?.classificationSource ?? "manual";
-      const newConfirm = result?.needsConfirmation ?? false;
       const newDnf = result?.dnf ?? false;
-      if (
-        activity.eventType !== newType ||
-        activity.classificationSource !== newSource ||
-        activity.needsConfirmation !== newConfirm ||
-        activity.dnf !== newDnf
-      ) {
-        await db.activities.update(activity.stravaId, {
-          eventType: newType,
-          classificationSource: newSource,
-          needsConfirmation: newConfirm,
-          dnf: newDnf,
-        });
-        updated++;
+
+      if (activity.manualOverride) {
+        // Only update dnf for manually overridden activities
+        if (activity.dnf !== newDnf) {
+          await db.activities.update(activity.stravaId, { dnf: newDnf });
+          updated++;
+        }
+      } else {
+        const newType = result?.eventType ?? null;
+        const newSource = result?.classificationSource ?? "manual";
+        const newConfirm = result?.needsConfirmation ?? false;
+        if (
+          activity.eventType !== newType ||
+          activity.classificationSource !== newSource ||
+          activity.needsConfirmation !== newConfirm ||
+          activity.dnf !== newDnf
+        ) {
+          await db.activities.update(activity.stravaId, {
+            eventType: newType,
+            classificationSource: newSource,
+            needsConfirmation: newConfirm,
+            dnf: newDnf,
+          });
+          updated++;
+        }
       }
     }
   });
