@@ -18,6 +18,15 @@ export interface Activity {
   homologationNumber: string | null;
   dnf: boolean;
   sourceUrl: string;
+  startLat: number | null;
+  startLng: number | null;
+  endLat: number | null;
+  endLng: number | null;
+  startCountry: string | null;
+  startRegion: string | null;
+  endCountry: string | null;
+  endRegion: string | null;
+  isNotableInternational: boolean;
 }
 
 export const db = new Dexie("AudaxTracker") as Dexie & {
@@ -67,6 +76,22 @@ db.version(5).stores({
     if (!activity.sourceUrl) {
       activity.sourceUrl = `https://www.strava.com/activities/${activity.stravaId}`;
     }
+  });
+});
+
+db.version(6).stores({
+  activities: "stravaId, date, eventType, type, startCountry, startRegion",
+}).upgrade(tx => {
+  return tx.table("activities").toCollection().modify(activity => {
+    activity.startLat = null;
+    activity.startLng = null;
+    activity.endLat = null;
+    activity.endLng = null;
+    activity.startCountry = null;
+    activity.startRegion = null;
+    activity.endCountry = null;
+    activity.endRegion = null;
+    activity.isNotableInternational = false;
   });
 });
 

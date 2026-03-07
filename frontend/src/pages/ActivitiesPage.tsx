@@ -2,12 +2,12 @@ import { useMemo, useState, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, bulkConfirm, bulkSetType, bulkSetDnf, type Activity } from "../db/database";
 import type { EventType } from "../db/types";
-import { useSync } from "../hooks/useSync";
+import { useSyncContext } from "../context/SyncContext";
 import { ActivityRow } from "../components/ActivityRow";
 import { BulkActionBar } from "../components/BulkActionBar";
 import { ClassificationLegend } from "../components/EventTypeBadge";
 
-const AUDAX_EVENT_TYPES: NonNullable<EventType>[] = [
+const AUDAX_EVENT_TYPES_ROW1: NonNullable<EventType>[] = [
   "BRM200",
   "BRM300",
   "BRM400",
@@ -15,10 +15,14 @@ const AUDAX_EVENT_TYPES: NonNullable<EventType>[] = [
   "BRM1000",
   "PBP",
   "RM1200+",
+];
+
+const AUDAX_EVENT_TYPES_ROW2: NonNullable<EventType>[] = [
   "Fleche",
   "SuperRandonneur",
   "TraceVelocio",
   "FlecheDeFrance",
+  "Permanent",
   "Other",
 ];
 
@@ -47,7 +51,7 @@ function getSortValue(a: Activity, key: SortKey): string | number {
 }
 
 export default function ActivitiesPage() {
-  const { sync, syncing, progress, error } = useSync();
+  const { sync, syncing, progress, error } = useSyncContext();
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
   const [audaxOnly, setAudaxOnly] = useState(false);
@@ -285,39 +289,56 @@ export default function ActivitiesPage() {
             😢 DNF only
           </label>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-sm font-medium text-gray-700 mr-1">Type:</span>
-          {selectedTypes.size > 0 && (
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-sm font-medium text-gray-700 mr-1">Type:</span>
+            {selectedTypes.size > 0 && (
+              <button
+                onClick={clearTypeFilter}
+                className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-200 text-gray-600 hover:bg-gray-300"
+              >
+                Clear
+              </button>
+            )}
             <button
-              onClick={clearTypeFilter}
-              className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-200 text-gray-600 hover:bg-gray-300"
-            >
-              Clear
-            </button>
-          )}
-          <button
-            onClick={() => toggleType("__null__")}
-            className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
-              selectedTypes.has("__null__")
-                ? "bg-gray-600 text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-          >
-            (unclassified)
-          </button>
-          {AUDAX_EVENT_TYPES.map((t) => (
-            <button
-              key={t}
-              onClick={() => toggleType(t)}
+              onClick={() => toggleType("__null__")}
               className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
-                selectedTypes.has(t)
-                  ? "bg-orange-500 text-white"
+                selectedTypes.has("__null__")
+                  ? "bg-gray-600 text-white"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              {t}
+              (unclassified)
             </button>
-          ))}
+            {AUDAX_EVENT_TYPES_ROW1.map((t) => (
+              <button
+                key={t}
+                onClick={() => toggleType(t)}
+                className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                  selectedTypes.has(t)
+                    ? "bg-orange-500 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 pl-[4.5rem]">
+            {AUDAX_EVENT_TYPES_ROW2.map((t) => (
+              <button
+                key={t}
+                onClick={() => toggleType(t)}
+                className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                  selectedTypes.has(t)
+                    ? "bg-orange-500 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -371,6 +392,9 @@ export default function ActivitiesPage() {
                     )}
                   </th>
                 ))}
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Start
+                </th>
                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   {/* edit */}
                 </th>

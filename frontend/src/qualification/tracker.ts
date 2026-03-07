@@ -71,6 +71,12 @@ const BRM_DISTANCES: NonNullable<EventType>[] = [
   "BRM1000",
 ];
 
+// Only these event types count toward ACP R5000/R10000 distance and window
+const ACP_QUALIFYING_TYPES: NonNullable<EventType>[] = [
+  "BRM200", "BRM300", "BRM400", "BRM600", "BRM1000",
+  "PBP", "RM1200+", "Fleche",
+];
+
 /**
  * Merges expiring events from multiple qualification checks,
  * combining the `affects` arrays for duplicate activities.
@@ -275,7 +281,10 @@ function findExpiringEvents(
 export function checkAcp5000(
   activities: QualifyingActivity[]
 ): Acp5000Status {
-  const windowActivities = findBestWindow(activities.filter((a) => !a.dnf), 4);
+  const eligible = activities.filter(
+    (a) => !a.dnf && ACP_QUALIFYING_TYPES.includes(a.eventType as NonNullable<EventType>)
+  );
+  const windowActivities = findBestWindow(eligible, 4);
   const totalKm = windowActivities.reduce((sum, a) => sum + a.distance, 0);
 
   const series = checkBrmSeries(windowActivities);
@@ -384,6 +393,127 @@ export function checkAcp5000(
   };
 }
 
+export interface RrtyMonthStatus {
+  month: string; // "YYYY-MM"
+  label: string; // "Jun 2025"
+  activities: QualifyingActivity[];
+}
+
+export interface RrtyResult {
+  qualified: boolean;
+  // Most recent ongoing streak — this is what matters for a new attempt
+  currentStreakStart: string | null;
+  currentStreakLength: number;
+  currentStreakMonths: RrtyMonthStatus[];
+  // Longest historical streak (for context; may equal current if still ongoing)
+  bestStreakStart: string | null;
+  bestStreakEnd: string | null;
+  bestStreakLength: number;
+  bestStreakMonths: RrtyMonthStatus[];
+}
+
+function addMonths(yearMonth: string, n: number): string {
+  const [year, month] = yearMonth.split("-").map(Number);
+  const d = new Date(year, month - 1 + n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * Check qualification status for Audax Ireland RRTY
+ * (Randonneur Round The Year).
+ *
+ * Requirement: at least one approved brevet of 200km+ in EVERY month
+ * for 12 CONSECUTIVE months. Missing a month resets the streak.
+ *
+ * Finds the longest consecutive streak across all activities.
+ */
+export function checkRrty(activities: QualifyingActivity[]): RrtyResult {
+  const empty: RrtyResult = {
+    qualified: false,
+    currentStreakStart: null,
+    currentStreakLength: 0,
+    currentStreakMonths: [],
+    bestStreakStart: null,
+    bestStreakEnd: null,
+    bestStreakLength: 0,
+    bestStreakMonths: [],
+  };
+
+  // Qualifying: non-DNF, classified event, 200km+
+  const qualifying = activities.filter(
+    (a) => !a.dnf && a.eventType !== null && a.distance >= 200
+  );
+
+  if (qualifying.length === 0) return empty;
+
+  // Build month → activities map
+  const monthMap = new Map<string, QualifyingActivity[]>();
+  for (const a of qualifying) {
+    const month = a.date.substring(0, 7); // "YYYY-MM"
+    if (!monthMap.has(month)) monthMap.set(month, []);
+    monthMap.get(month)!.push(a);
+  }
+
+  const sortedMonths = [...monthMap.keys()].sort();
+
+  // Walk sorted months and collect consecutive streaks
+  type Streak = { start: string; end: string; length: number };
+  const streaks: Streak[] = [];
+  let streakStart = sortedMonths[0];
+  let streakLen = 1;
+
+  for (let i = 1; i < sortedMonths.length; i++) {
+    if (addMonths(sortedMonths[i - 1], 1) === sortedMonths[i]) {
+      streakLen++;
+    } else {
+      streaks.push({ start: streakStart, end: sortedMonths[i - 1], length: streakLen });
+      streakStart = sortedMonths[i];
+      streakLen = 1;
+    }
+  }
+  streaks.push({ start: streakStart, end: sortedMonths[sortedMonths.length - 1], length: streakLen });
+
+  // Best streak = longest (keep last on tie to prefer more recent)
+  const best = streaks.reduce((b, s) => s.length >= b.length ? s : b, streaks[0]);
+
+  // Current streak = the most recent one, BUT only if it's still alive.
+  // A streak is alive if it ended in the current month or the previous month.
+  // If there's been a gap since then, the clock has reset to 0.
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const prevMonth = addMonths(currentMonth, -1);
+
+  const lastStreak = streaks[streaks.length - 1];
+  const isStreakAlive = lastStreak.end >= prevMonth;
+  const current = isStreakAlive ? lastStreak : null;
+
+  const buildMonths = (streak: Streak): RrtyMonthStatus[] => {
+    const result: RrtyMonthStatus[] = [];
+    for (let i = 0; i < streak.length; i++) {
+      const month = addMonths(streak.start, i);
+      const acts = monthMap.get(month) ?? [];
+      const [year, mon] = month.split("-").map(Number);
+      const label = new Date(year, mon - 1, 1).toLocaleDateString("en-IE", {
+        month: "short",
+        year: "numeric",
+      });
+      result.push({ month, label, activities: acts });
+    }
+    return result;
+  };
+
+  return {
+    qualified: (current?.length ?? 0) >= 12,
+    currentStreakStart: current?.start ?? null,
+    currentStreakLength: current?.length ?? 0,
+    currentStreakMonths: current ? buildMonths(current) : [],
+    bestStreakStart: best.start,
+    bestStreakEnd: best.end,
+    bestStreakLength: best.length,
+    bestStreakMonths: current && best.start === current.start ? [] : buildMonths(best),
+  };
+}
+
 const MOUNTAIN_600_ELEVATION = 8000; // meters
 
 /**
@@ -394,7 +524,10 @@ const MOUNTAIN_600_ELEVATION = 8000; // meters
 export function checkAcp10000(
   activities: QualifyingActivity[]
 ): Acp10000Status {
-  const windowActivities = findBestWindow(activities.filter((a) => !a.dnf), 6);
+  const eligible = activities.filter(
+    (a) => !a.dnf && ACP_QUALIFYING_TYPES.includes(a.eventType as NonNullable<EventType>)
+  );
+  const windowActivities = findBestWindow(eligible, 6);
   const totalKm = windowActivities.reduce((sum, a) => sum + a.distance, 0);
 
   const sortedByDate = [...windowActivities].sort(

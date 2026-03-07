@@ -1,12 +1,26 @@
-import { useState, useCallback } from "react";
-import { useAuth } from "../context/AuthContext";
+import { createContext, useCallback, useContext, useState } from "react";
+import { useAuth } from "./AuthContext";
 import { fetchAllActivities, hasNewActivities } from "../strava/client";
 import { db } from "../db/database";
 import { geocodeActivities } from "../geo/geocoder";
 
 const LAST_SYNC_KEY = "audax_last_sync";
 
-export function useSync() {
+interface SyncContextValue {
+  sync: () => Promise<void>;
+  checkPending: () => Promise<void>;
+  syncing: boolean;
+  checking: boolean;
+  hasPending: boolean;
+  progress: { fetched: number; total: number } | null;
+  geocoding: { done: number; total: number } | null;
+  error: string | null;
+  lastSync: string | null;
+}
+
+const SyncContext = createContext<SyncContextValue | null>(null);
+
+export function SyncProvider({ children }: { children: React.ReactNode }) {
   const { getAccessToken } = useAuth();
   const [syncing, setSyncing] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -26,18 +40,27 @@ export function useSync() {
     try {
       const token = await getAccessToken();
 
-      // Always fetch all activities — this keeps names, distances, lat/lng,
-      // and any other Strava fields up to date on every sync.
-      const activities = await fetchAllActivities(token, undefined, (fetched) => {
+      // Use incremental sync (after last sync) to stay within Strava rate limits.
+      // Exception: if activities are missing lat/lng (pre-geo-feature data or first
+      // sync ever), do a one-time full fetch to backfill coordinates, then go back
+      // to incremental on all future syncs.
+      const hasMissingLatLng =
+        lastSync !== null &&
+        (await db.activities.filter((a) => a.startLat === null).count()) > 0;
+
+      const afterEpoch =
+        lastSync && !hasMissingLatLng
+          ? Math.floor(new Date(lastSync).getTime() / 1000)
+          : undefined;
+
+      const activities = await fetchAllActivities(token, afterEpoch, (fetched) => {
         setProgress({ fetched, total: 0 });
       });
 
-      // Upsert activities, preserving manual overrides
       await db.transaction("rw", db.activities, async () => {
         for (const activity of activities) {
           const existing = await db.activities.get(activity.stravaId);
           if (existing?.manualOverride) {
-            // Refresh all Strava fields but keep user edits
             await db.activities.put({
               ...activity,
               eventType: existing.eventType,
@@ -45,7 +68,6 @@ export function useSync() {
               manualOverride: true,
               homologationNumber: existing.homologationNumber,
               dnf: existing.dnf,
-              // Preserve geocoded data so we don't wipe it on re-sync
               startCountry: existing.startCountry,
               startRegion: existing.startRegion,
               endCountry: existing.endCountry,
@@ -53,7 +75,6 @@ export function useSync() {
               isNotableInternational: existing.isNotableInternational,
             });
           } else {
-            // Preserve geocoded data for non-manual activities too
             await db.activities.put({
               ...activity,
               startCountry: existing?.startCountry ?? null,
@@ -69,12 +90,13 @@ export function useSync() {
       const now = new Date().toISOString();
       localStorage.setItem(LAST_SYNC_KEY, now);
       setLastSync(now);
-      // Geocode any activities that now have lat/lng but no country yet (background)
+      setHasPending(false);
+
+      // Geocode in background — state lives in context so survives navigation
       setGeocoding({ done: 0, total: 0 });
       geocodeActivities((done, total) => setGeocoding({ done, total }))
         .catch(console.error)
         .finally(() => setGeocoding(null));
-      setHasPending(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sync failed");
     } finally {
@@ -99,5 +121,17 @@ export function useSync() {
     }
   }, [getAccessToken, lastSync]);
 
-  return { sync, checkPending, syncing, checking, hasPending, progress, geocoding, error, lastSync };
+  return (
+    <SyncContext.Provider
+      value={{ sync, checkPending, syncing, checking, hasPending, progress, geocoding, error, lastSync }}
+    >
+      {children}
+    </SyncContext.Provider>
+  );
+}
+
+export function useSyncContext(): SyncContextValue {
+  const ctx = useContext(SyncContext);
+  if (!ctx) throw new Error("useSyncContext must be used within SyncProvider");
+  return ctx;
 }

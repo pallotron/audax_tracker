@@ -11,6 +11,7 @@ export type EventType =
   | "SuperRandonneur"
   | "TraceVelocio"
   | "FlecheDeFrance"
+  | "Permanent"
   | "Other";
 
 export type ClassificationSource = "auto-name" | "auto-distance" | "manual";

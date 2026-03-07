@@ -153,4 +153,39 @@ describe("classifyActivity", () => {
       expect(result!.classificationSource).toBe("auto-name");
     });
   });
+
+  describe("Permanent events", () => {
+    it("classifies 'Permanent 200' as Permanent with needsConfirmation", () => {
+      const result = classifyActivity(makeRaw({ name: "Permanent 200", distance: 200_000 }));
+      expect(result).not.toBeNull();
+      expect(result!.eventType).toBe("Permanent");
+      expect(result!.classificationSource).toBe("auto-name");
+      expect(result!.needsConfirmation).toBe(true);
+    });
+
+    it("classifies 'perm 300' as Permanent", () => {
+      const result = classifyActivity(makeRaw({ name: "perm 300", distance: 300_000 }));
+      expect(result!.eventType).toBe("Permanent");
+    });
+
+    it("classifies 'perm200' (no space) as Permanent", () => {
+      const result = classifyActivity(makeRaw({ name: "perm200", distance: 200_000 }));
+      expect(result!.eventType).toBe("Permanent");
+    });
+
+    it("classifies 'DIY Brevet 200' as Permanent", () => {
+      const result = classifyActivity(makeRaw({ name: "DIY Brevet 200km", distance: 200_000 }));
+      expect(result!.eventType).toBe("Permanent");
+    });
+
+    it("classifies 'Brevet Permanent' as Permanent", () => {
+      const result = classifyActivity(makeRaw({ name: "Brevet Permanent 300", distance: 300_000 }));
+      expect(result!.eventType).toBe("Permanent");
+    });
+
+    it("does not classify 'permanently tired' as Permanent", () => {
+      const result = classifyActivity(makeRaw({ name: "permanently tired", distance: 50_000 }));
+      expect(result?.eventType).not.toBe("Permanent");
+    });
+  });
 });

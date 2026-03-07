@@ -22,6 +22,15 @@ describe("Activity database", () => {
     homologationNumber: null,
     dnf: false,
     sourceUrl: "https://www.strava.com/activities/12345",
+    startLat: null,
+    startLng: null,
+    endLat: null,
+    endLng: null,
+    startCountry: null,
+    startRegion: null,
+    endCountry: null,
+    endRegion: null,
+    isNotableInternational: false,
   };
 
   it("should add and retrieve an activity", async () => {
@@ -98,6 +107,15 @@ describe("Bulk operations", () => {
     homologationNumber: null,
     dnf: false,
     sourceUrl: `https://www.strava.com/activities/${id}`,
+    startLat: null,
+    startLng: null,
+    endLat: null,
+    endLng: null,
+    startCountry: null,
+    startRegion: null,
+    endCountry: null,
+    endRegion: null,
+    isNotableInternational: false,
     ...overrides,
   });
 

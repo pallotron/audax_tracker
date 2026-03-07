@@ -19,6 +19,7 @@ const badgeColors: Record<string, string> = {
   SuperRandonneur: "bg-teal-100 text-teal-800",
   TraceVelocio: "bg-cyan-100 text-cyan-800",
   FlecheDeFrance: "bg-emerald-100 text-emerald-800",
+  Permanent: "bg-violet-100 text-violet-800",
   Other: "bg-gray-100 text-gray-800",
 };
 

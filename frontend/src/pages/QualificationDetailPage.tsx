@@ -381,6 +381,9 @@ export default function QualificationDetailPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                     Type
                   </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Homologation
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -410,6 +413,9 @@ export default function QualificationDetailPage() {
                         eventType={activity.eventType}
                         source={activity.classificationSource}
                       />
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                      {activity.homologationNumber ?? "—"}
                     </td>
                   </tr>
                 ))}

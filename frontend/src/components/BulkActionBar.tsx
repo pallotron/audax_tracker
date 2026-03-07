@@ -14,6 +14,7 @@ const EVENT_TYPE_OPTIONS: { value: EventType; label: string }[] = [
   { value: "SuperRandonneur", label: "SuperRandonneur" },
   { value: "TraceVelocio", label: "TraceVelocio" },
   { value: "FlecheDeFrance", label: "FlecheDeFrance" },
+  { value: "Permanent", label: "Permanent" },
   { value: "Other", label: "Other" },
 ];
 

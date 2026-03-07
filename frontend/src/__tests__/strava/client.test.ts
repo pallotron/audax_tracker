@@ -13,6 +13,8 @@ describe("mapStravaActivity", () => {
       type: "Ride",
       sport_type: "Ride",
       start_date: "2025-06-15T06:00:00Z",
+      start_latlng: [53.3498, -6.2603] as [number, number],
+      end_latlng: [53.3498, -6.2603] as [number, number],
     };
     const result = mapStravaActivity(stravaData);
     expect(result.stravaId).toBe("12345");
@@ -33,6 +35,50 @@ describe("mapStravaActivity", () => {
   });
 });
 
+describe("mapStravaActivity — geo fields", () => {
+  function makeRawWithGeo(overrides = {}) {
+    return {
+      id: 12345,
+      name: "BRM 200",
+      distance: 200000,
+      moving_time: 28800,
+      elapsed_time: 30000,
+      total_elevation_gain: 1200,
+      type: "Ride",
+      sport_type: "Ride",
+      start_date: "2025-06-01T07:00:00Z",
+      start_latlng: [53.3498, -6.2603],
+      end_latlng: [53.3498, -6.2603],
+      ...overrides,
+    };
+  }
+
+  it("stores start and end lat/lng when present", () => {
+    const result = mapStravaActivity(makeRawWithGeo());
+    expect(result.startLat).toBe(53.3498);
+    expect(result.startLng).toBe(-6.2603);
+    expect(result.endLat).toBe(53.3498);
+    expect(result.endLng).toBe(-6.2603);
+  });
+
+  it("stores null for lat/lng when Strava returns empty array", () => {
+    const result = mapStravaActivity(makeRawWithGeo({ start_latlng: [], end_latlng: [] }));
+    expect(result.startLat).toBeNull();
+    expect(result.startLng).toBeNull();
+    expect(result.endLat).toBeNull();
+    expect(result.endLng).toBeNull();
+  });
+
+  it("initializes country/region/notableInternational as null/false", () => {
+    const result = mapStravaActivity(makeRawWithGeo());
+    expect(result.startCountry).toBeNull();
+    expect(result.startRegion).toBeNull();
+    expect(result.endCountry).toBeNull();
+    expect(result.endRegion).toBeNull();
+    expect(result.isNotableInternational).toBe(false);
+  });
+});
+
 describe("fetchAllActivities", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -49,6 +95,8 @@ describe("fetchAllActivities", () => {
       type: "Ride",
       sport_type: "Ride",
       start_date: "2025-01-01T00:00:00Z",
+      start_latlng: [] as [],
+      end_latlng: [] as [],
     }));
     const page2 = [page1[0]];
     let callCount = 0;

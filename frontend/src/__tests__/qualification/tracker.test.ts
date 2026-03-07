@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   checkAcp5000,
   checkAcp10000,
+  checkRrty,
   type QualifyingActivity,
 } from "../../qualification/tracker";
 
@@ -104,6 +105,114 @@ describe("checkAcp5000", () => {
     // The 2020 BRM200 is outside the 4-year window, so BRM series incomplete
     expect(result.brmSeries.met).toBe(false);
     expect(result.qualified).toBe(false);
+  });
+});
+
+describe("checkRrty", () => {
+  // Generate a "YYYY-MM" string relative to the current month.
+  // offset=0 → this month, offset=-1 → last month, offset=-11 → 11 months ago
+  function relMonth(offset: number): string {
+    const now = new Date();
+    const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  function makeMonthActivity(yearMonth: string, overrides: Partial<QualifyingActivity> = {}): QualifyingActivity {
+    const id = Math.random().toString(36).slice(2);
+    return {
+      stravaId: id,
+      name: "BRM 200",
+      date: `${yearMonth}-15`,
+      distance: 200,
+      elevationGain: 1000,
+      eventType: "BRM200",
+      dnf: false,
+      sourceUrl: `https://www.strava.com/activities/${id}`,
+      ...overrides,
+    };
+  }
+
+  it("returns incomplete when no activities", () => {
+    const result = checkRrty([]);
+    expect(result.qualified).toBe(false);
+    expect(result.currentStreakLength).toBe(0);
+    expect(result.currentStreakMonths).toHaveLength(0);
+  });
+
+  it("qualifies when current streak reaches 12 consecutive months", () => {
+    // 12 months ending this month
+    const activities = Array.from({ length: 12 }, (_, i) =>
+      makeMonthActivity(relMonth(i - 11))
+    );
+    const result = checkRrty(activities);
+    expect(result.qualified).toBe(true);
+    expect(result.currentStreakLength).toBe(12);
+    expect(result.currentStreakMonths).toHaveLength(12);
+  });
+
+  it("resets streak when a month is missing — current streak is the most recent run", () => {
+    // Months: -10, -9, gap at -8, then -7 through 0 (9 months)
+    const activities = [
+      makeMonthActivity(relMonth(-10)),
+      makeMonthActivity(relMonth(-9)),
+      // skip relMonth(-8)
+      ...Array.from({ length: 8 }, (_, i) => makeMonthActivity(relMonth(i - 7))),
+    ];
+    const result = checkRrty(activities);
+    expect(result.qualified).toBe(false);
+    expect(result.currentStreakLength).toBe(8);
+    expect(result.bestStreakLength).toBe(8);
+  });
+
+  it("does not qualify based on historical streak alone — current streak must reach 12", () => {
+    // Historical 7-month streak ending 3 months ago, then gap, then 2-month current streak
+    const historical = Array.from({ length: 7 }, (_, i) => makeMonthActivity(relMonth(i - 11)));
+    // gap at relMonth(-4)
+    const current = [makeMonthActivity(relMonth(-1)), makeMonthActivity(relMonth(0))];
+    const result = checkRrty([...historical, ...current]);
+    expect(result.qualified).toBe(false);
+    expect(result.currentStreakLength).toBe(2);
+    expect(result.bestStreakLength).toBe(7);
+  });
+
+  it("excludes DNF activities — breaks streak if only ride that month was DNF", () => {
+    // 12 months, but month at offset -6 is DNF → two streaks of 5 and 6
+    const activities = Array.from({ length: 12 }, (_, i) =>
+      makeMonthActivity(relMonth(i - 11), { dnf: i === 5 })
+    );
+    const result = checkRrty(activities);
+    expect(result.qualified).toBe(false);
+    expect(result.currentStreakLength).toBe(6);
+  });
+
+  it("excludes rides under 200km — breaks streak if only ride that month is too short", () => {
+    // 12 months, month at offset -8 has only a 100km ride
+    const activities = Array.from({ length: 12 }, (_, i) =>
+      makeMonthActivity(relMonth(i - 11), { distance: i === 3 ? 100 : 200 })
+    );
+    const result = checkRrty(activities);
+    expect(result.qualified).toBe(false);
+    expect(result.currentStreakLength).toBe(8);
+  });
+
+  it("treats a streak as dead if it ended more than one month ago (clock reset to 0)", () => {
+    // Streak of 3 months ending 2 years ago — far in the past
+    const activities = ["2020-01", "2020-02", "2020-03"].map((m) => makeMonthActivity(m));
+    const result = checkRrty(activities);
+    expect(result.qualified).toBe(false);
+    expect(result.currentStreakLength).toBe(0);
+    expect(result.currentStreakMonths).toHaveLength(0);
+    expect(result.bestStreakLength).toBe(3);
+  });
+
+  it("accepts multiple qualifying activities in a month (all included)", () => {
+    const activities = Array.from({ length: 12 }, (_, i) =>
+      makeMonthActivity(relMonth(i - 11))
+    );
+    activities.push(makeMonthActivity(relMonth(-11))); // second ride in oldest month
+    const result = checkRrty(activities);
+    expect(result.qualified).toBe(true);
+    expect(result.currentStreakMonths[0].activities).toHaveLength(2);
   });
 });
 

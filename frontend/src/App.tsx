@@ -3,12 +3,16 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { reclassifyAll } from "./db/database";
 import Layout from "./components/Layout";
+import { SyncProvider } from "./context/SyncContext";
 import LoginPage from "./pages/LoginPage";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 import DashboardPage from "./pages/DashboardPage";
 import ActivitiesPage from "./pages/ActivitiesPage";
 import YearlySummaryPage from "./pages/YearlySummaryPage";
 import QualificationDetailPage from "./pages/QualificationDetailPage";
+import AboutPage from "./pages/AboutPage";
+import RrtyPage from "./pages/RrtyPage";
+import AwardsPage from "./pages/AwardsPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -31,6 +35,7 @@ function AppRoutes() {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<HomePage />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/callback" element={<OAuthCallbackPage />} />
         <Route
           path="/dashboard"
@@ -64,6 +69,22 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/rrty"
+          element={
+            <ProtectedRoute>
+              <RrtyPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/awards"
+          element={
+            <ProtectedRoute>
+              <AwardsPage />
+            </ProtectedRoute>
+          }
+        />
       </Route>
     </Routes>
   );
@@ -79,7 +100,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        <SyncProvider>
+          <AppRoutes />
+        </SyncProvider>
       </AuthProvider>
     </BrowserRouter>
   );

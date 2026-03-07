@@ -22,6 +22,7 @@ const EVENT_TYPE_OPTIONS: EventType[] = [
   "SuperRandonneur",
   "TraceVelocio",
   "FlecheDeFrance",
+  "Permanent",
   "Other",
 ];
 
@@ -135,6 +136,11 @@ export function ActivityRow({ activity, selected, onToggle }: ActivityRowProps) 
         ) : (
           activity.homologationNumber ?? "-"
         )}
+      </td>
+      <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500">
+        {activity.startRegion && activity.startCountry
+          ? `${activity.startRegion}, ${activity.startCountry}`
+          : activity.startCountry ?? "—"}
       </td>
       <td className="whitespace-nowrap px-3 py-2 text-sm">
         {editing ? (

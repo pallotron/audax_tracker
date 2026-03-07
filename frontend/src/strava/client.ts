@@ -11,6 +11,8 @@ export interface StravaActivityResponse {
   type: string;
   sport_type: string;
   start_date: string;
+  start_latlng: [number, number] | [];
+  end_latlng: [number, number] | [];
 }
 
 const STRAVA_API = "https://www.strava.com/api/v3";
@@ -57,7 +59,34 @@ export function mapStravaActivity(raw: StravaActivityResponse): Activity {
     homologationNumber: null,
     dnf: classification?.dnf ?? false,
     sourceUrl: `https://www.strava.com/activities/${raw.id}`,
+    startLat: raw.start_latlng?.[0] ?? null,
+    startLng: raw.start_latlng?.[1] ?? null,
+    endLat: raw.end_latlng?.[0] ?? null,
+    endLng: raw.end_latlng?.[1] ?? null,
+    startCountry: null,
+    startRegion: null,
+    endCountry: null,
+    endRegion: null,
+    isNotableInternational: false,
   };
+}
+
+/**
+ * Lightweight check: returns true if Strava has any activities
+ * newer than `afterEpoch`. Fetches only 1 result.
+ */
+export async function hasNewActivities(
+  accessToken: string,
+  afterEpoch: number
+): Promise<boolean> {
+  const params = new URLSearchParams({ per_page: "1", after: String(afterEpoch) });
+  const response = await fetch(
+    `${STRAVA_API}/athlete/activities?${params.toString()}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!response.ok) return false;
+  const data = await response.json();
+  return Array.isArray(data) && data.length > 0;
 }
 
 export async function fetchAllActivities(
@@ -85,6 +114,12 @@ export async function fetchAllActivities(
     );
 
     if (!response.ok) {
+      if (response.status === 429) {
+        const minutesUntilReset = 15 - (new Date().getMinutes() % 15);
+        throw new Error(
+          `Strava rate limit reached. Try again in ~${minutesUntilReset} minute${minutesUntilReset !== 1 ? "s" : ""}.`
+        );
+      }
       throw new Error(`Strava API error: ${response.status}`);
     }
 

@@ -17,6 +17,7 @@ interface NamePattern {
   pattern: RegExp;
   eventType: EventType;
   minDistanceKm?: number;
+  needsConfirmation?: boolean;
 }
 
 interface DistanceRange {
@@ -26,6 +27,11 @@ interface DistanceRange {
 }
 
 const NAME_PATTERNS: NamePattern[] = [
+  // Permanent events (self-scheduled brevets)
+  { pattern: /\bpermanent\b/i, eventType: "Permanent", needsConfirmation: true },
+  { pattern: /\bperm\s*\d/i, eventType: "Permanent", needsConfirmation: true },
+  { pattern: /\bdiy\s+brevet\b/i, eventType: "Permanent", needsConfirmation: true },
+  { pattern: /\bbrevet\s+permanent\b/i, eventType: "Permanent", needsConfirmation: true },
   // BRM distances first — explicit distance in name takes priority
   { pattern: /\b(?:brm|brevet|audax)\s*1000/i, eventType: "BRM1000" },
   { pattern: /\b(?:brm|brevet|audax)\s*600/i, eventType: "BRM600" },
@@ -81,11 +87,16 @@ export function classifyActivity(
 ): ClassificationResult | null {
   // Check name patterns first
   const distanceKm = raw.distance / 1000;
-  for (const { pattern, eventType, minDistanceKm } of NAME_PATTERNS) {
+  for (const { pattern, eventType, minDistanceKm, needsConfirmation } of NAME_PATTERNS) {
     if (pattern.test(raw.name)) {
       if (minDistanceKm && distanceKm < minDistanceKm) continue;
       const dnf = detectDnf(raw.name, eventType, distanceKm);
-      return { eventType, classificationSource: "auto-name", needsConfirmation: false, dnf };
+      return {
+        eventType,
+        classificationSource: "auto-name",
+        needsConfirmation: needsConfirmation ?? false,
+        dnf,
+      };
     }
   }
 
