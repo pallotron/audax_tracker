@@ -67,7 +67,7 @@ const MINIMUM_DISTANCE_KM: Partial<Record<NonNullable<EventType>, number>> = {
   "RM1200+": 1200,
 };
 
-function detectDnf(name: string, eventType: EventType, distanceKm: number): boolean {
+export function detectDnf(name: string, eventType: EventType, distanceKm: number): boolean {
   if (/\bdnf\b/i.test(name)) return true;
   if (eventType && eventType in MINIMUM_DISTANCE_KM) {
     const minKm = MINIMUM_DISTANCE_KM[eventType as NonNullable<EventType>]!;

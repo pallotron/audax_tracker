@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from "dexie";
 import type { EventType, ClassificationSource } from "./types";
-import { classifyActivity } from "../classification/classifier";
+import { classifyActivity, detectDnf } from "../classification/classifier";
 
 export interface Activity {
   stravaId: string;
@@ -47,6 +47,17 @@ db.version(3).stores({
   });
 });
 
+db.version(4).stores({
+  activities: "stravaId, date, eventType, type",
+}).upgrade(tx => {
+  // Backfill dnf=true for any activity with "DNF" in the name
+  return tx.table("activities").toCollection().modify(activity => {
+    if (/\bdnf\b/i.test(activity.name)) {
+      activity.dnf = true;
+    }
+  });
+});
+
 /**
  * Re-run the classifier on all activities.
  * - For non-manually-overridden activities: updates eventType, classificationSource, needsConfirmation, and dnf.
@@ -67,9 +78,11 @@ export async function reclassifyAll(): Promise<number> {
       const newDnf = result?.dnf ?? false;
 
       if (activity.manualOverride) {
-        // Only update dnf for manually overridden activities
-        if (activity.dnf !== newDnf) {
-          await db.activities.update(activity.stravaId, { dnf: newDnf });
+        // For manually overridden activities, detect DNF using existing eventType
+        // (classifyActivity may return null if name/distance don't match patterns)
+        const manualDnf = detectDnf(activity.name, activity.eventType, activity.distance);
+        if (activity.dnf !== manualDnf) {
+          await db.activities.update(activity.stravaId, { dnf: manualDnf });
           updated++;
         }
       } else {
