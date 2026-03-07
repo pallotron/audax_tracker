@@ -5,6 +5,7 @@ import { useSync } from "../hooks/useSync";
 import {
   checkAcp5000,
   checkAcp10000,
+  mergeExpiringEvents,
   type QualifyingActivity,
 } from "../qualification/tracker";
 import { QualificationCard } from "../components/QualificationCard";
@@ -12,6 +13,7 @@ import { QualificationCard } from "../components/QualificationCard";
 function toQualifyingActivity(a: Activity): QualifyingActivity {
   return {
     stravaId: a.stravaId,
+    name: a.name,
     date: a.date instanceof Date ? a.date.toISOString() : String(a.date),
     distance: a.distance,
     elevationGain: a.elevationGain,
@@ -20,7 +22,7 @@ function toQualifyingActivity(a: Activity): QualifyingActivity {
 }
 
 export default function DashboardPage() {
-  const { sync, syncing, error, lastSync } = useSync();
+  const { sync, syncing, progress, error, lastSync } = useSync();
   const hasSynced = useRef(false);
 
   const activities = useLiveQuery(() => db.activities.toArray(), []);
@@ -33,7 +35,9 @@ export default function DashboardPage() {
     }
   }, [activities, lastSync, sync]);
 
-  const qualifying = (activities ?? []).map(toQualifyingActivity);
+  const qualifying = (activities ?? [])
+    .filter((a) => a.eventType !== null)
+    .map(toQualifyingActivity);
   const status5000 = checkAcp5000(qualifying);
   const status10000 = checkAcp10000(qualifying);
 
@@ -41,6 +45,7 @@ export default function DashboardPage() {
   const thisYearActivities = (activities ?? []).filter(
     (a) => new Date(a.date).getFullYear() === currentYear
   );
+  const audaxThisYear = thisYearActivities.filter((a) => a.eventType !== null);
   const totalKmThisYear = thisYearActivities.reduce(
     (sum, a) => sum + a.distance,
     0
@@ -76,13 +81,24 @@ export default function DashboardPage() {
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                 />
               </svg>
-              Syncing...
+              {progress
+                ? `Fetched ${progress.fetched} activities…`
+                : "Connecting..."}
             </>
           ) : (
             "Sync with Strava"
           )}
         </button>
       </div>
+
+      {syncing && progress && (
+        <div className="w-full rounded-full bg-gray-200 h-2.5 overflow-hidden">
+          <div
+            className="bg-orange-500 h-2.5 rounded-full animate-pulse"
+            style={{ width: "100%" }}
+          />
+        </div>
+      )}
 
       {error && (
         <div className="rounded-md bg-red-50 p-4">
@@ -108,26 +124,60 @@ export default function DashboardPage() {
       )}
 
       {/* Year summary */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-500">Rides this year</p>
           <p className="text-2xl font-bold text-gray-900">
             {thisYearActivities.length}
           </p>
+          <p className="text-sm text-orange-600">{audaxThisYear.length} audax</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-500">Km this year</p>
           <p className="text-2xl font-bold text-gray-900">
             {Math.round(totalKmThisYear).toLocaleString()}
           </p>
+          <p className="text-sm text-orange-600">
+            {Math.round(audaxThisYear.reduce((s, a) => s + a.distance, 0)).toLocaleString()} audax
+          </p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-500">Total synced</p>
+          <p className="text-sm text-gray-500">Elevation this year</p>
           <p className="text-2xl font-bold text-gray-900">
-            {(activities ?? []).length}
+            {Math.round(thisYearActivities.reduce((s, a) => s + a.elevationGain, 0)).toLocaleString()} m
+          </p>
+          <p className="text-sm text-orange-600">
+            {Math.round(audaxThisYear.reduce((s, a) => s + a.elevationGain, 0)).toLocaleString()} m audax
           </p>
         </div>
       </div>
+
+      {/* Expiring events warnings */}
+      {(() => {
+        const merged = mergeExpiringEvents(status5000.expiringEvents, status10000.expiringEvents);
+        return merged.length > 0 ? (
+          <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4">
+            <h3 className="mb-2 text-sm font-semibold text-yellow-800">
+              Critical events expiring within 6 months
+            </h3>
+            <ul className="space-y-1">
+              {merged.map((ev) => (
+                <li key={ev.stravaId} className="flex items-center gap-2 text-sm text-yellow-700">
+                  <span className="font-medium">{ev.eventType}</span>
+                  <span className="truncate max-w-xs">{ev.name}</span>
+                  <span>({ev.date.toLocaleDateString()})</span>
+                  <span className="text-yellow-600">
+                    — expires {ev.expiresAt.toLocaleDateString()}
+                  </span>
+                  <span className="text-xs text-yellow-500 italic">
+                    (affects {ev.affects.join(", ")})
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null;
+      })()}
 
       {/* Qualification cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -202,9 +252,23 @@ export default function DashboardPage() {
       </div>
 
       {lastSync && (
-        <p className="text-xs text-gray-400 text-center">
-          Last synced: {new Date(lastSync).toLocaleString()}
-        </p>
+        <div className="flex items-center justify-center gap-4">
+          <p className="text-xs text-gray-400">
+            Last synced: {new Date(lastSync).toLocaleString()}
+          </p>
+          <button
+            onClick={async () => {
+              if (window.confirm("Clear all activity data? You'll need to re-sync from Strava.")) {
+                await db.activities.clear();
+                localStorage.removeItem("audax_last_sync");
+                window.location.reload();
+              }
+            }}
+            className="text-xs text-red-400 hover:text-red-600"
+          >
+            Clear data
+          </button>
+        </div>
       )}
     </div>
   );

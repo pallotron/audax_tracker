@@ -3,6 +3,7 @@ import type { EventType, ClassificationSource } from "../db/types";
 interface EventTypeBadgeProps {
   eventType: EventType;
   source: ClassificationSource;
+  needsConfirmation?: boolean;
 }
 
 const badgeColors: Record<string, string> = {
@@ -20,27 +21,51 @@ const badgeColors: Record<string, string> = {
   Other: "bg-gray-100 text-gray-800",
 };
 
-const sourceLabels: Record<ClassificationSource, string> = {
-  manual: "(manual)",
-  "auto-name": "(name)",
-  "auto-distance": "(dist)",
+export const SOURCE_LABELS: Record<ClassificationSource, { icon: string; title: string }> = {
+  manual: { icon: "✏️", title: "Manually classified" },
+  "auto-name": { icon: "🏷️", title: "Auto-classified by name" },
+  "auto-distance": { icon: "📏", title: "Auto-classified by distance" },
 };
 
-export function EventTypeBadge({ eventType, source }: EventTypeBadgeProps) {
+export function ClassificationLegend() {
+  return (
+    <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
+      <span className="font-medium text-gray-600">Legend:</span>
+      {(Object.entries(SOURCE_LABELS) as [ClassificationSource, { icon: string; title: string }][]).map(
+        ([, { icon, title }]) => (
+          <span key={title} className="inline-flex items-center gap-1">
+            <span>{icon}</span>
+            <span>{title}</span>
+          </span>
+        )
+      )}
+      <span className="inline-flex items-center gap-1">
+        <span className="inline-block rounded-full px-1.5 py-0.5 text-xs ring-2 ring-yellow-400 bg-gray-100">?</span>
+        <span>Needs confirmation</span>
+      </span>
+    </div>
+  );
+}
+
+export function EventTypeBadge({ eventType, source, needsConfirmation }: EventTypeBadgeProps) {
   if (eventType === null) {
     return <span className="text-gray-400">-</span>;
   }
 
   const colorClass = badgeColors[eventType] ?? "bg-gray-100 text-gray-800";
+  const borderClass = needsConfirmation ? "ring-2 ring-yellow-400" : "";
 
   return (
     <span className="inline-flex items-center gap-1">
       <span
-        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${colorClass}`}
+        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${colorClass} ${borderClass}`}
       >
         {eventType}
+        {needsConfirmation && <span className="ml-0.5 text-yellow-600">?</span>}
       </span>
-      <span className="text-xs text-gray-400">{sourceLabels[source]}</span>
+      <span className="text-xs cursor-help" title={SOURCE_LABELS[source].title}>
+        {SOURCE_LABELS[source].icon}
+      </span>
     </span>
   );
 }

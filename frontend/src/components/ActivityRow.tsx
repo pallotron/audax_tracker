@@ -98,6 +98,7 @@ export function ActivityRow({ activity }: ActivityRowProps) {
           <EventTypeBadge
             eventType={activity.eventType}
             source={activity.classificationSource}
+            needsConfirmation={activity.needsConfirmation && !activity.manualOverride}
           />
         )}
       </td>

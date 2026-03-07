@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type Activity } from "../db/database";
-import { EventTypeBadge } from "../components/EventTypeBadge";
+import { EventTypeBadge, ClassificationLegend } from "../components/EventTypeBadge";
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -11,8 +11,55 @@ function formatDuration(seconds: number): string {
 
 export default function YearlySummaryPage() {
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [showComparison, setShowComparison] = useState(false);
 
   const activities = useLiveQuery(() => db.activities.toArray());
+
+  const audaxActivities = useMemo(
+    () => (activities ?? []).filter((a) => a.eventType !== null),
+    [activities],
+  );
+
+  const years = useMemo(
+    () =>
+      [
+        ...new Set(audaxActivities.map((a) => new Date(a.date).getFullYear())),
+      ].sort((a, b) => b - a),
+    [audaxActivities],
+  );
+
+  const activeYear = selectedYear ?? years[0] ?? new Date().getFullYear();
+
+  const yearActivities = useMemo(
+    () =>
+      audaxActivities
+        .filter((a) => new Date(a.date).getFullYear() === activeYear)
+        .sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+        ),
+    [audaxActivities, activeYear],
+  );
+
+  const rideCount = yearActivities.length;
+  const totalKm = yearActivities.reduce((sum, a) => sum + a.distance, 0);
+  const totalElevation = yearActivities.reduce(
+    (sum, a) => sum + a.elevationGain,
+    0,
+  );
+
+  const yearlyStats = useMemo(() => {
+    return years.map((year) => {
+      const ya = audaxActivities.filter(
+        (a) => new Date(a.date).getFullYear() === year,
+      );
+      return {
+        year,
+        rides: ya.length,
+        km: Math.round(ya.reduce((s, a) => s + a.distance, 0)),
+        elevation: Math.round(ya.reduce((s, a) => s + a.elevationGain, 0)),
+      };
+    });
+  }, [years, audaxActivities]);
 
   if (!activities) {
     return (
@@ -22,33 +69,19 @@ export default function YearlySummaryPage() {
     );
   }
 
-  // Get audax activities (eventType !== null)
-  const audaxActivities = activities.filter((a) => a.eventType !== null);
-
-  // Collect years that have audax activities, sorted descending
-  const years = [
-    ...new Set(audaxActivities.map((a) => new Date(a.date).getFullYear())),
-  ].sort((a, b) => b - a);
-
-  // Default to most recent year
-  const activeYear = selectedYear ?? years[0] ?? new Date().getFullYear();
-
-  // Filter activities for the selected year, sorted by date ascending
-  const yearActivities = audaxActivities
-    .filter((a) => new Date(a.date).getFullYear() === activeYear)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-  // Stats
-  const rideCount = yearActivities.length;
-  const totalKm = yearActivities.reduce((sum, a) => sum + a.distance, 0);
-  const totalElevation = yearActivities.reduce(
-    (sum, a) => sum + a.elevationGain,
-    0,
-  );
-
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Yearly Summary</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Yearly Summary</h1>
+        {years.length > 1 && (
+          <button
+            onClick={() => setShowComparison((v) => !v)}
+            className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+          >
+            {showComparison ? "Hide comparison" : "Compare years"}
+          </button>
+        )}
+      </div>
 
       {/* Year selector */}
       {years.length > 0 && (
@@ -66,6 +99,36 @@ export default function YearlySummaryPage() {
               {year}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Multi-year comparison */}
+      {showComparison && yearlyStats.length > 0 && (
+        <div className="overflow-x-auto rounded-lg bg-white shadow">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Year</th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Rides</th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Km</th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Elevation (m)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {yearlyStats.map((s) => (
+                <tr
+                  key={s.year}
+                  className={`hover:bg-gray-50 cursor-pointer ${s.year === activeYear ? "bg-orange-50" : ""}`}
+                  onClick={() => { setSelectedYear(s.year); setShowComparison(false); }}
+                >
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{s.year}</td>
+                  <td className="px-4 py-3 text-right text-sm text-gray-900">{s.rides}</td>
+                  <td className="px-4 py-3 text-right text-sm text-gray-900">{s.km.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right text-sm text-gray-900">{s.elevation.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -99,7 +162,9 @@ export default function YearlySummaryPage() {
           No audax rides recorded for {activeYear}.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg bg-white shadow">
+        <>
+        <ClassificationLegend />
+        <div className="mt-2 overflow-x-auto rounded-lg bg-white shadow">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -158,6 +223,7 @@ export default function YearlySummaryPage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );

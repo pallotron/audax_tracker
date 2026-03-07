@@ -9,11 +9,13 @@ export interface RawActivity {
 export interface ClassificationResult {
   eventType: EventType;
   classificationSource: ClassificationSource;
+  needsConfirmation: boolean;
 }
 
 interface NamePattern {
   pattern: RegExp;
   eventType: EventType;
+  minDistanceKm?: number;
 }
 
 interface DistanceRange {
@@ -23,15 +25,26 @@ interface DistanceRange {
 }
 
 const NAME_PATTERNS: NamePattern[] = [
-  { pattern: /paris[- ]brest[- ]paris/i, eventType: "PBP" },
-  { pattern: /\bpbp\b/i, eventType: "PBP" },
+  // BRM distances first — explicit distance in name takes priority
+  { pattern: /\b(?:brm|brevet|audax)\s*1000/i, eventType: "BRM1000" },
+  { pattern: /\b(?:brm|brevet|audax)\s*600/i, eventType: "BRM600" },
+  { pattern: /\b(?:brm|brevet|audax)\s*400/i, eventType: "BRM400" },
+  { pattern: /\b(?:brm|brevet|audax)\s*300/i, eventType: "BRM300" },
+  { pattern: /\b(?:brm|brevet|audax)\s*200/i, eventType: "BRM200" },
+  // Also match "1000 audax", "400 audax", etc.
+  { pattern: /\b1000\s*(?:km\s+)?audax/i, eventType: "BRM1000" },
+  { pattern: /\b600\s*(?:km\s+)?audax/i, eventType: "BRM600" },
+  { pattern: /\b400\s*(?:km\s+)?audax/i, eventType: "BRM400" },
+  { pattern: /\b300\s*(?:km\s+)?audax/i, eventType: "BRM300" },
+  { pattern: /\b200\s*(?:km\s+)?audax/i, eventType: "BRM200" },
+  // PBP — only as the event itself, not "PBP qualification" references, and must be long enough
+  { pattern: /paris[- ]brest[- ]paris/i, eventType: "PBP", minDistanceKm: 1000 },
+  { pattern: /\bpbp(?:\d+)?(?![\w]*qual)/i, eventType: "PBP", minDistanceKm: 1000 },
+  // Fleche variants
   { pattern: /fl[eè]che\s+v[eé]locio/i, eventType: "Fleche" },
+  { pattern: /fl[eè]che\s+nationale/i, eventType: "Fleche" },
+  { pattern: /fl[eè]che\s+de\s+france/i, eventType: "FlecheDeFrance" },
   { pattern: /trace\s+v[eé]locio/i, eventType: "TraceVelocio" },
-  { pattern: /\b(?:brm|brevet)\s*1000/i, eventType: "BRM1000" },
-  { pattern: /\b(?:brm|brevet)\s*600/i, eventType: "BRM600" },
-  { pattern: /\b(?:brm|brevet)\s*400/i, eventType: "BRM400" },
-  { pattern: /\b(?:brm|brevet)\s*300/i, eventType: "BRM300" },
-  { pattern: /\b(?:brm|brevet)\s*200/i, eventType: "BRM200" },
 ];
 
 const DISTANCE_RANGES: DistanceRange[] = [
@@ -47,17 +60,18 @@ export function classifyActivity(
   raw: RawActivity
 ): ClassificationResult | null {
   // Check name patterns first
-  for (const { pattern, eventType } of NAME_PATTERNS) {
+  const distanceKm = raw.distance / 1000;
+  for (const { pattern, eventType, minDistanceKm } of NAME_PATTERNS) {
     if (pattern.test(raw.name)) {
-      return { eventType, classificationSource: "auto-name" };
+      if (minDistanceKm && distanceKm < minDistanceKm) continue;
+      return { eventType, classificationSource: "auto-name", needsConfirmation: false };
     }
   }
 
   // Check distance ranges
-  const distanceKm = raw.distance / 1000;
   for (const { minKm, maxKm, eventType } of DISTANCE_RANGES) {
     if (distanceKm >= minKm && distanceKm <= maxKm) {
-      return { eventType, classificationSource: "auto-distance" };
+      return { eventType, classificationSource: "auto-distance", needsConfirmation: true };
     }
   }
 

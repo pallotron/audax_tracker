@@ -7,8 +7,10 @@ export interface Env {
 const STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token";
 
 function corsHeaders(origin: string, allowedOrigin: string): HeadersInit {
+  // In dev, allow any origin if ALLOWED_ORIGIN is not set
+  const effectiveOrigin = allowedOrigin || origin || "*";
   return {
-    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Origin": effectiveOrigin,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
   };

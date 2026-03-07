@@ -7,15 +7,17 @@ import {
   findBestWindow,
   type QualifyingActivity,
   type Requirement,
+  type ExpiringEvent,
 } from "../qualification/tracker";
 import { ProgressBar } from "../components/ProgressBar";
-import { EventTypeBadge } from "../components/EventTypeBadge";
+import { EventTypeBadge, ClassificationLegend } from "../components/EventTypeBadge";
 
 function toQualifyingActivities(activities: Activity[]): QualifyingActivity[] {
   return activities
     .filter((a) => a.eventType !== null)
     .map((a) => ({
       stravaId: a.stravaId,
+      name: a.name,
       date: new Date(a.date).toISOString(),
       distance: a.distance,
       elevationGain: a.elevationGain,
@@ -59,6 +61,11 @@ function RequirementCard({ label, requirement }: RequirementCardProps) {
       <div>
         <p className="font-medium text-gray-900">{label}</p>
         <p className="text-sm text-gray-500">{requirement.details}</p>
+        {requirement.completedDate && (
+          <p className="text-xs text-gray-400">
+            Completed: {requirement.completedDate.toLocaleDateString()}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -104,11 +111,24 @@ export default function QualificationDetailPage() {
         })()
       : null;
 
-  // Activities in the best window, sorted by date ascending
+  // Activities in the best window, sorted by date descending (most recent first)
   const windowActivityIds = new Set(windowActivities.map((a) => a.stravaId));
   const tableActivities = activities
     .filter((a) => windowActivityIds.has(a.stravaId))
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  // For timeline: find the most recent ride per BRM distance in the window
+  const BRM_DISTANCES = ["BRM200", "BRM300", "BRM400", "BRM600", "BRM1000"] as const;
+  const latestPerBrmDistance = BRM_DISTANCES.map((dist) => {
+    const match = tableActivities.find((a) => a.eventType === dist);
+    return match ? { distance: dist, name: match.name, date: new Date(match.date) } : null;
+  }).filter(Boolean) as { distance: string; name: string; date: Date }[];
+
+  // For timeline: find the most recent ride for single-event requirements
+  const findLatestForType = (eventType: string) => {
+    const match = tableActivities.find((a) => a.eventType === eventType);
+    return match ? { name: match.name, date: new Date(match.date) } : null;
+  };
 
   // Build requirements list
   const requirements: { label: string; requirement: Requirement }[] = [];
@@ -194,6 +214,109 @@ export default function QualificationDetailPage() {
         </div>
       </div>
 
+      {/* Expiring events warning */}
+      {status.expiringEvents.length > 0 && (
+        <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4">
+          <h3 className="mb-2 text-sm font-semibold text-yellow-800">
+            Events expiring within 6 months
+          </h3>
+          <ul className="space-y-1">
+            {status.expiringEvents.map((ev: ExpiringEvent) => (
+              <li key={ev.stravaId} className="flex items-center gap-2 text-sm text-yellow-700">
+                <span className="font-medium">{ev.eventType}</span>
+                <span className="truncate max-w-xs">{ev.name}</span>
+                <span>({ev.date.toLocaleDateString()})</span>
+                <span className="text-yellow-600">
+                  — expires {ev.expiresAt.toLocaleDateString()}
+                </span>
+                <span className="text-xs text-yellow-500 italic">
+                  (affects {ev.affects.join(", ")})
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Completion timeline */}
+      {requirements.some((r) => r.requirement.completedDate) && (
+        <div>
+          <h2 className="mb-3 text-lg font-semibold text-gray-900">
+            Completion Timeline
+          </h2>
+          <div className="rounded-lg bg-white p-4 shadow">
+            <div className="relative">
+              {/* Timeline line */}
+              <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gray-200" />
+              <div className="space-y-4">
+                {[...requirements, { label: `Distance (${targetKm} km)`, requirement: status.distance }]
+                  .filter((r) => r.requirement.completedDate)
+                  .sort(
+                    (a, b) =>
+                      a.requirement.completedDate!.getTime() -
+                      b.requirement.completedDate!.getTime(),
+                  )
+                  .map((r) => {
+                    // Determine qualifying rides for this requirement
+                    const isBrmSeries = r.label === "Full BRM Series" || r.label === "2x BRM Series";
+                    const pbpRide = r.label === "Paris-Brest-Paris" ? findLatestForType("PBP") : null;
+                    const flecheRide = r.label === "Fleche" ? findLatestForType("Fleche") : null;
+                    const rm1200Ride = r.label === "RM 1200+ (separate from PBP)" ? findLatestForType("RM1200+") : null;
+                    const mountain600Ride = r.label === "Mountain BRM 600 (8000m+)"
+                      ? (() => {
+                          const m = tableActivities.find(
+                            (a) => a.eventType === "BRM600" && a.elevationGain >= 8000,
+                          );
+                          return m ? { name: m.name, date: new Date(m.date) } : null;
+                        })()
+                      : null;
+                    const singleRide = pbpRide ?? flecheRide ?? rm1200Ride ?? mountain600Ride;
+
+                    return (
+                      <div key={r.label} className="relative pl-7">
+                        <div className="absolute left-1.5 top-0.5 h-3 w-3 rounded-full bg-green-500 ring-2 ring-white" />
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-gray-400 w-24 flex-shrink-0">
+                            {r.requirement.completedDate!.toLocaleDateString()}
+                          </span>
+                          <span className="text-sm font-medium text-gray-900">
+                            {r.label}
+                          </span>
+                        </div>
+                        {/* Show qualifying rides */}
+                        {isBrmSeries && latestPerBrmDistance.length > 0 && (
+                          <div className="ml-28 mt-1 space-y-0.5">
+                            {latestPerBrmDistance.map((d) => (
+                              <p key={d.distance} className="text-xs text-gray-400">
+                                {d.distance}: {d.name} ({d.date.toLocaleDateString()})
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                        {singleRide && (
+                          <p className="ml-28 mt-1 text-xs text-gray-400">
+                            {singleRide.name} ({singleRide.date.toLocaleDateString()})
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                {/* Pending items */}
+                {[...requirements, { label: `Distance (${targetKm} km)`, requirement: status.distance }]
+                  .filter((r) => !r.requirement.met)
+                  .map((r) => (
+                    <div key={r.label} className="relative flex items-center gap-3 pl-7">
+                      <div className="absolute left-1.5 h-3 w-3 rounded-full border-2 border-gray-300 bg-white" />
+                      <span className="text-xs text-gray-300 w-24 flex-shrink-0">pending</span>
+                      <span className="text-sm text-gray-400">{r.label}</span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Qualifying events table */}
       <div>
         <h2 className="mb-3 text-lg font-semibold text-gray-900">
@@ -204,7 +327,9 @@ export default function QualificationDetailPage() {
             No qualifying events found.
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-lg bg-white shadow">
+          <>
+          <ClassificationLegend />
+          <div className="mt-2 overflow-x-auto rounded-lg bg-white shadow">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -251,6 +376,7 @@ export default function QualificationDetailPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>

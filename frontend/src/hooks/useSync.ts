@@ -3,11 +3,13 @@ import { useAuth } from "../context/AuthContext";
 import { fetchAllActivities } from "../strava/client";
 import { db } from "../db/database";
 
+
 const LAST_SYNC_KEY = "audax_last_sync";
 
 export function useSync() {
   const { getAccessToken } = useAuth();
   const [syncing, setSyncing] = useState(false);
+  const [progress, setProgress] = useState<{ fetched: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<string | null>(
     () => localStorage.getItem(LAST_SYNC_KEY)
@@ -16,6 +18,7 @@ export function useSync() {
   const sync = useCallback(async () => {
     setSyncing(true);
     setError(null);
+    setProgress(null);
 
     try {
       const token = await getAccessToken();
@@ -25,7 +28,9 @@ export function useSync() {
         ? Math.floor(new Date(lastSync).getTime() / 1000)
         : undefined;
 
-      const activities = await fetchAllActivities(token, afterEpoch);
+      const activities = await fetchAllActivities(token, afterEpoch, (fetched) => {
+        setProgress({ fetched, total: 0 });
+      });
 
       // Upsert activities, preserving manual overrides
       await db.transaction("rw", db.activities, async () => {
@@ -53,8 +58,9 @@ export function useSync() {
       setError(err instanceof Error ? err.message : "Sync failed");
     } finally {
       setSyncing(false);
+      setProgress(null);
     }
   }, [getAccessToken, lastSync]);
 
-  return { sync, syncing, error, lastSync };
+  return { sync, syncing, progress, error, lastSync };
 }

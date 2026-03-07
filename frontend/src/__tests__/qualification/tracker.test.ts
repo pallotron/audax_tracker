@@ -10,6 +10,7 @@ function makeActivity(
 ): QualifyingActivity {
   return {
     stravaId: Math.random().toString(36).slice(2),
+    name: "Test Ride",
     date: "2025-06-01",
     distance: 200,
     elevationGain: 1000,

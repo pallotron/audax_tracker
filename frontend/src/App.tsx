@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { reclassifyAll } from "./db/database";
 import Layout from "./components/Layout";
 import LoginPage from "./pages/LoginPage";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
@@ -68,6 +70,12 @@ function AppRoutes() {
 }
 
 export default function App() {
+  useEffect(() => {
+    reclassifyAll().then((n) => {
+      if (n > 0) console.log(`Reclassified ${n} activities`);
+    });
+  }, []);
+
   return (
     <BrowserRouter>
       <AuthProvider>

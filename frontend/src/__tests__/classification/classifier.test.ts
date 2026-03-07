@@ -21,20 +21,62 @@ describe("classifyActivity", () => {
       ["BRM 400", "BRM400"],
       ["BRM 600", "BRM600"],
       ["BRM 1000", "BRM1000"],
-      ["Paris-Brest-Paris", "PBP"],
-      ["PBP", "PBP"],
+      ["400 Audax", "BRM400"],
+      ["200 km Audax", "BRM200"],
+      ["Audax 600", "BRM600"],
+      ["Paris-Brest-Paris", "PBP", 1200000],
+      ["PBP", "PBP", 1200000],
+      ["PBP23: the ride!", "PBP", 1224000],
+      ["PBP2023", "PBP", 1200000],
       ["Flèche Vélocio", "Fleche"],
       ["Fleche Velocio", "Fleche"],
       ["Trace Vélocio", "TraceVelocio"],
     ])(
       'should classify "%s" as %s with source auto-name',
-      (name, expectedType) => {
-        const result = classifyActivity(makeRaw({ name }));
+      (name, expectedType, distance) => {
+        const result = classifyActivity(makeRaw({ name, ...(distance ? { distance } : {}) }));
         expect(result).not.toBeNull();
         expect(result!.eventType).toBe(expectedType);
         expect(result!.classificationSource).toBe("auto-name");
       }
     );
+
+    it("classifies '400 Audax - SR series, PBP qualification' as BRM400, not PBP", () => {
+      const result = classifyActivity(
+        makeRaw({ name: "REK 400 Audax - SR series: ✅, PBP qualification: ✅, 4 Provinces: 3/4" })
+      );
+      expect(result).not.toBeNull();
+      expect(result!.eventType).toBe("BRM400");
+    });
+
+    it("does not classify short ride mentioning PBP as PBP", () => {
+      const result = classifyActivity(
+        makeRaw({ name: "PBP Chain abandoned me in Dun Laoghaire 🤣", distance: 65000 })
+      );
+      expect(result?.eventType).not.toBe("PBP");
+    });
+
+    it("does not classify 'PBP qualification' as PBP", () => {
+      const result = classifyActivity(
+        makeRaw({ name: "Some ride - PBP qualification: ✅" })
+      );
+      // Should not match PBP — "PBP qual" is excluded
+      expect(result?.eventType).not.toBe("PBP");
+    });
+
+    it("detects Fleche Nationale from name", () => {
+      const result = classifyActivity(makeRaw({ name: "Flèche Nationale 2025" }));
+      expect(result).not.toBeNull();
+      expect(result!.eventType).toBe("Fleche");
+      expect(result!.classificationSource).toBe("auto-name");
+    });
+
+    it("detects Fleche de France from name", () => {
+      const result = classifyActivity(makeRaw({ name: "Fleche de France Gold" }));
+      expect(result).not.toBeNull();
+      expect(result!.eventType).toBe("FlecheDeFrance");
+      expect(result!.classificationSource).toBe("auto-name");
+    });
   });
 
   describe("distance-based classification", () => {
@@ -56,8 +98,14 @@ describe("classifyActivity", () => {
     );
 
     it("should return null for 50km (no match)", () => {
-      const result = classifyActivity(makeRaw({ distance: 50_000 }));
+      const result = classifyActivity(makeRaw({ distance: 50000 }));
       expect(result).toBeNull();
+    });
+
+    it("should set needsConfirmation for distance-classified rides", () => {
+      const result = classifyActivity(makeRaw({ distance: 205000 }));
+      expect(result).not.toBeNull();
+      expect(result!.needsConfirmation).toBe(true);
     });
   });
 

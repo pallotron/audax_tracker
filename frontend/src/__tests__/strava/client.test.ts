@@ -25,6 +25,7 @@ describe("mapStravaActivity", () => {
     expect(result.date).toEqual(new Date("2025-06-15T06:00:00Z"));
     expect(result.eventType).toBe("BRM200");
     expect(result.classificationSource).toBe("auto-name");
+    expect(result.needsConfirmation).toBe(false);
     expect(result.manualOverride).toBe(false);
     expect(result.homologationNumber).toBeNull();
   });
