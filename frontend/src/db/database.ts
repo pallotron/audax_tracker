@@ -17,6 +17,7 @@ export interface Activity {
   manualOverride: boolean;
   homologationNumber: string | null;
   dnf: boolean;
+  excludeFromAwards: boolean;
   sourceUrl: string;
   startLat: number | null;
   startLng: number | null;
@@ -92,6 +93,16 @@ db.version(6).stores({
     activity.endCountry = null;
     activity.endRegion = null;
     activity.isNotableInternational = false;
+  });
+});
+
+db.version(7).stores({
+  activities: "stravaId, date, eventType, type, startCountry, startRegion",
+}).upgrade(tx => {
+  return tx.table("activities").toCollection().modify(activity => {
+    if (activity.excludeFromAwards === undefined) {
+      activity.excludeFromAwards = false;
+    }
   });
 });
 

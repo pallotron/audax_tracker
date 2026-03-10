@@ -31,6 +31,7 @@ describe("Activity database", () => {
     endCountry: null,
     endRegion: null,
     isNotableInternational: false,
+    excludeFromAwards: false,
   };
 
   it("should add and retrieve an activity", async () => {
@@ -116,6 +117,7 @@ describe("Bulk operations", () => {
     endCountry: null,
     endRegion: null,
     isNotableInternational: false,
+    excludeFromAwards: false,
     ...overrides,
   });
 
@@ -176,5 +178,51 @@ describe("Bulk operations", () => {
     const a1 = await db.activities.get("1");
     expect(a1!.eventType).toBeNull();
     expect(a1!.classificationSource).toBe("manual");
+  });
+});
+
+describe("excludeFromAwards field", () => {
+  const sampleActivity: Activity = {
+    stravaId: "12345",
+    name: "BRM 200 Dublin",
+    date: new Date("2025-06-15"),
+    distance: 203.5,
+    elevationGain: 1200,
+    movingTime: 28800,
+    elapsedTime: 32400,
+    type: "Ride",
+    eventType: "BRM200",
+    classificationSource: "auto-name",
+    needsConfirmation: false,
+    manualOverride: false,
+    homologationNumber: null,
+    dnf: false,
+    sourceUrl: "https://www.strava.com/activities/12345",
+    startLat: null,
+    startLng: null,
+    endLat: null,
+    endLng: null,
+    startCountry: null,
+    startRegion: null,
+    endCountry: null,
+    endRegion: null,
+    isNotableInternational: false,
+    excludeFromAwards: false,
+  };
+
+  beforeEach(async () => {
+    await db.activities.clear();
+  });
+
+  it("should default excludeFromAwards to false on existing activities after migration", async () => {
+    // Insert a record without the field (simulating a pre-migration record)
+    await db.activities.add({
+      ...sampleActivity,
+      stravaId: "exclude-migration-test",
+    } as Activity);
+
+    const result = await db.activities.get("exclude-migration-test");
+    expect(result).toBeDefined();
+    expect(result!.excludeFromAwards).toBe(false);
   });
 });
