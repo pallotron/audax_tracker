@@ -73,6 +73,26 @@ const MINIMUM_DISTANCE_KM: Partial<Record<NonNullable<EventType>, number>> = {
   "RM1200+": 1200,
 };
 
+export interface AwardEligibilityFields {
+  dnf: boolean;
+  classificationSource: ClassificationSource;
+  manualOverride: boolean;
+  excludeFromAwards: boolean;
+}
+
+/**
+ * Returns true if an activity should be counted toward award calculations.
+ * Auto-distance classified rides are excluded until the user explicitly confirms them
+ * (which sets manualOverride: true). Manually excluded rides are always excluded.
+ */
+export function isAwardEligible(a: AwardEligibilityFields): boolean {
+  return (
+    !a.dnf &&
+    (a.classificationSource === "auto-name" || a.manualOverride) &&
+    !a.excludeFromAwards
+  );
+}
+
 export function detectDnf(name: string, eventType: EventType, distanceKm: number): boolean {
   if (/\bdnf\b/i.test(name)) return true;
   if (eventType && eventType in MINIMUM_DISTANCE_KM) {

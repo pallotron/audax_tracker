@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   classifyActivity,
+  isAwardEligible,
   type RawActivity,
 } from "../../classification/classifier";
 
@@ -187,5 +188,42 @@ describe("classifyActivity", () => {
       const result = classifyActivity(makeRaw({ name: "permanently tired", distance: 50_000 }));
       expect(result?.eventType).not.toBe("Permanent");
     });
+  });
+});
+
+describe("isAwardEligible", () => {
+  const base = {
+    dnf: false,
+    classificationSource: "auto-name" as const,
+    manualOverride: false,
+    excludeFromAwards: false,
+  };
+
+  it("returns true for auto-name classified, not excluded, not DNF", () => {
+    expect(isAwardEligible(base)).toBe(true);
+  });
+
+  it("returns false for DNF rides", () => {
+    expect(isAwardEligible({ ...base, dnf: true })).toBe(false);
+  });
+
+  it("returns false for auto-distance without manualOverride", () => {
+    expect(isAwardEligible({ ...base, classificationSource: "auto-distance" })).toBe(false);
+  });
+
+  it("returns true for auto-distance WITH manualOverride (user confirmed)", () => {
+    expect(isAwardEligible({ ...base, classificationSource: "auto-distance", manualOverride: true })).toBe(true);
+  });
+
+  it("returns true for manual classification source", () => {
+    expect(isAwardEligible({ ...base, classificationSource: "manual", manualOverride: true })).toBe(true);
+  });
+
+  it("returns false when excludeFromAwards is true", () => {
+    expect(isAwardEligible({ ...base, excludeFromAwards: true })).toBe(false);
+  });
+
+  it("returns false when excludeFromAwards AND auto-distance (both blocks apply)", () => {
+    expect(isAwardEligible({ ...base, classificationSource: "auto-distance", excludeFromAwards: true })).toBe(false);
   });
 });
