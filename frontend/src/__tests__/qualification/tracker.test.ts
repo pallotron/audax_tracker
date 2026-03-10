@@ -224,6 +224,63 @@ describe("checkRrty", () => {
   });
 });
 
+describe("award eligibility filtering", () => {
+  it("checkAcp5000: excludes unconfirmed (auto-distance) rides", () => {
+    const activities = [
+      makeActivity({ eventType: "BRM200", distance: 200, classificationSource: "auto-distance" }),
+      makeActivity({ eventType: "BRM300", distance: 300 }),
+      makeActivity({ eventType: "BRM400", distance: 400 }),
+      makeActivity({ eventType: "BRM600", distance: 600 }),
+      makeActivity({ eventType: "BRM1000", distance: 1000 }),
+    ];
+    const result = checkAcp5000(activities);
+    // BRM200 is auto-distance and should be excluded — series incomplete
+    expect(result.brmSeries.met).toBe(false);
+    expect(result.brmSeries.missing).toContain("BRM200");
+  });
+
+  it("checkAcp5000: counts auto-distance ride once manualOverride=true", () => {
+    const activities = [
+      makeActivity({ eventType: "BRM200", distance: 200, classificationSource: "auto-distance", manualOverride: true }),
+      makeActivity({ eventType: "BRM300", distance: 300 }),
+      makeActivity({ eventType: "BRM400", distance: 400 }),
+      makeActivity({ eventType: "BRM600", distance: 600 }),
+      makeActivity({ eventType: "BRM1000", distance: 1000 }),
+    ];
+    const result = checkAcp5000(activities);
+    expect(result.brmSeries.met).toBe(true);
+  });
+
+  it("checkAcp5000: excludes rides with excludeFromAwards=true", () => {
+    const activities = [
+      makeActivity({ eventType: "BRM200", distance: 200, excludeFromAwards: true }),
+      makeActivity({ eventType: "BRM300", distance: 300 }),
+      makeActivity({ eventType: "BRM400", distance: 400 }),
+      makeActivity({ eventType: "BRM600", distance: 600 }),
+      makeActivity({ eventType: "BRM1000", distance: 1000 }),
+    ];
+    const result = checkAcp5000(activities);
+    expect(result.brmSeries.met).toBe(false);
+    expect(result.brmSeries.missing).toContain("BRM200");
+  });
+
+  it("checkRrty: excludes unconfirmed rides from streak", () => {
+    // 12 months but one is unconfirmed
+    const activities = Array.from({ length: 12 }, (_, i) => {
+      const month = String(i + 1).padStart(2, "0");
+      return makeActivity({
+        eventType: "BRM200",
+        distance: 200,
+        date: `2025-${month}-15`,
+        classificationSource: i === 5 ? "auto-distance" : "auto-name",
+      });
+    });
+    const result = checkRrty(activities);
+    // Month 6 is unconfirmed → streak is broken → not qualified
+    expect(result.qualified).toBe(false);
+  });
+});
+
 describe("checkAcp10000", () => {
   it("returns incomplete when no activities", () => {
     const result = checkAcp10000([]);

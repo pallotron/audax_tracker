@@ -1,4 +1,5 @@
 import type { EventType, ClassificationSource } from "../db/types";
+import { isAwardEligible } from "../classification/classifier";
 
 export interface QualifyingActivity {
   stravaId: string;
@@ -287,7 +288,7 @@ export function checkAcp5000(
   activities: QualifyingActivity[]
 ): Acp5000Status {
   const eligible = activities.filter(
-    (a) => !a.dnf && ACP_QUALIFYING_TYPES.includes(a.eventType as NonNullable<EventType>)
+    (a) => isAwardEligible(a) && ACP_QUALIFYING_TYPES.includes(a.eventType as NonNullable<EventType>)
   );
   const windowActivities = findBestWindow(eligible, 4);
   const totalKm = windowActivities.reduce((sum, a) => sum + a.distance, 0);
@@ -446,7 +447,7 @@ export function checkRrty(activities: QualifyingActivity[]): RrtyResult {
 
   // Qualifying: non-DNF, classified event, 200km+
   const qualifying = activities.filter(
-    (a) => !a.dnf && a.eventType !== null && a.distance >= 200
+    (a) => isAwardEligible(a) && a.eventType !== null && a.distance >= 200
   );
 
   if (qualifying.length === 0) return empty;
@@ -530,7 +531,7 @@ export function checkAcp10000(
   activities: QualifyingActivity[]
 ): Acp10000Status {
   const eligible = activities.filter(
-    (a) => !a.dnf && ACP_QUALIFYING_TYPES.includes(a.eventType as NonNullable<EventType>)
+    (a) => isAwardEligible(a) && ACP_QUALIFYING_TYPES.includes(a.eventType as NonNullable<EventType>)
   );
   const windowActivities = findBestWindow(eligible, 6);
   const totalKm = windowActivities.reduce((sum, a) => sum + a.distance, 0);
