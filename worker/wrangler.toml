@@ -2,6 +2,10 @@ name = "audax-tracker-oauth"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 
+routes = [
+  { pattern = "api.audax-tracker.angelofailla.com/*", custom_domain = true }
+]
+
 [vars]
 STRAVA_CLIENT_ID = ""
 
