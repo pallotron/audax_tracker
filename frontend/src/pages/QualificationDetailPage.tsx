@@ -24,6 +24,10 @@ function toQualifyingActivities(activities: Activity[]): QualifyingActivity[] {
       eventType: a.eventType!,
       dnf: a.dnf,
       sourceUrl: a.sourceUrl,
+      classificationSource: a.classificationSource,
+      manualOverride: a.manualOverride,
+      excludeFromAwards: a.excludeFromAwards,
+      needsConfirmation: a.needsConfirmation,
     }));
 }
 

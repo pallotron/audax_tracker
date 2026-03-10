@@ -26,6 +26,10 @@ function makeActivity(overrides: Partial<AwardsActivity> = {}): AwardsActivity {
     endCountry: "Ireland",
     endRegion: "Leinster",
     isNotableInternational: false,
+    classificationSource: "auto-name",
+    manualOverride: false,
+    excludeFromAwards: false,
+    needsConfirmation: false,
     ...overrides,
   };
 }

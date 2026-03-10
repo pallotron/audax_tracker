@@ -1,4 +1,4 @@
-import type { EventType } from "../db/types";
+import type { EventType, ClassificationSource } from "../db/types";
 
 export interface QualifyingActivity {
   stravaId: string;
@@ -9,6 +9,11 @@ export interface QualifyingActivity {
   eventType: EventType;
   dnf: boolean;
   sourceUrl: string;
+  // Award eligibility fields
+  classificationSource: ClassificationSource;
+  manualOverride: boolean;
+  excludeFromAwards: boolean;
+  needsConfirmation: boolean;
 }
 
 export interface Requirement {

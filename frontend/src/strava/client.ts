@@ -68,6 +68,7 @@ export function mapStravaActivity(raw: StravaActivityResponse): Activity {
     endCountry: null,
     endRegion: null,
     isNotableInternational: false,
+    excludeFromAwards: false,
   };
 }
 

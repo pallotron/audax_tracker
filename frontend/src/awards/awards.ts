@@ -1,4 +1,4 @@
-import type { EventType } from "../db/types";
+import type { EventType, ClassificationSource } from "../db/types";
 
 export interface AwardsActivity {
   stravaId: string;
@@ -14,6 +14,11 @@ export interface AwardsActivity {
   endCountry: string | null;
   endRegion: string | null;
   isNotableInternational: boolean;
+  // Award eligibility fields
+  classificationSource: ClassificationSource;
+  manualOverride: boolean;
+  excludeFromAwards: boolean;
+  needsConfirmation: boolean;
 }
 
 function addMonths(yearMonth: string, n: number): string {

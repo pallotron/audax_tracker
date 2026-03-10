@@ -19,6 +19,10 @@ function makeActivity(
     eventType: "BRM200",
     dnf: false,
     sourceUrl: `https://www.strava.com/activities/${id}`,
+    classificationSource: "auto-name",
+    manualOverride: false,
+    excludeFromAwards: false,
+    needsConfirmation: false,
     ...overrides,
   };
 }
@@ -128,6 +132,10 @@ describe("checkRrty", () => {
       eventType: "BRM200",
       dnf: false,
       sourceUrl: `https://www.strava.com/activities/${id}`,
+      classificationSource: "auto-name",
+      manualOverride: false,
+      excludeFromAwards: false,
+      needsConfirmation: false,
       ...overrides,
     };
   }

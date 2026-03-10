@@ -24,6 +24,10 @@ function toQualifying(a: Activity): QualifyingActivity {
     eventType: a.eventType,
     dnf: a.dnf,
     sourceUrl: a.sourceUrl,
+    classificationSource: a.classificationSource,
+    manualOverride: a.manualOverride,
+    excludeFromAwards: a.excludeFromAwards,
+    needsConfirmation: a.needsConfirmation,
   };
 }
 
@@ -42,6 +46,10 @@ function toAwards(a: Activity): AwardsActivity {
     endCountry: a.endCountry ?? null,
     endRegion: a.endRegion ?? null,
     isNotableInternational: a.isNotableInternational ?? false,
+    classificationSource: a.classificationSource,
+    manualOverride: a.manualOverride,
+    excludeFromAwards: a.excludeFromAwards,
+    needsConfirmation: a.needsConfirmation,
   };
 }
 
