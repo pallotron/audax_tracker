@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { db, type Activity, bulkConfirm, bulkSetType } from "../../db/database";
+import { db, type Activity, bulkConfirm, bulkSetType, bulkExcludeFromAwards, bulkIncludeInAwards } from "../../db/database";
 
 beforeEach(async () => {
   await db.activities.clear();
@@ -88,6 +88,19 @@ describe("Activity database", () => {
     expect(updated!.eventType).toBe("BRM300");
     expect(updated!.manualOverride).toBe(true);
     expect(updated!.homologationNumber).toBe("ACP-2025-12345");
+  });
+
+  it("should store and retrieve excludeFromAwards field", async () => {
+    await db.activities.add(sampleActivity);
+    const result = await db.activities.get("12345");
+    expect(result).toBeDefined();
+    expect(result!.excludeFromAwards).toBe(false);
+  });
+
+  it("should store excludeFromAwards: true when explicitly set", async () => {
+    await db.activities.add({ ...sampleActivity, excludeFromAwards: true });
+    const result = await db.activities.get("12345");
+    expect(result!.excludeFromAwards).toBe(true);
   });
 });
 
@@ -181,23 +194,23 @@ describe("Bulk operations", () => {
   });
 });
 
-describe("excludeFromAwards field", () => {
-  const sampleActivity: Activity = {
-    stravaId: "12345",
-    name: "BRM 200 Dublin",
+describe("bulkExcludeFromAwards / bulkIncludeInAwards", () => {
+  const makeActivity = (id: string, overrides: Partial<Activity> = {}): Activity => ({
+    stravaId: id,
+    name: `Activity ${id}`,
     date: new Date("2025-06-15"),
-    distance: 203.5,
-    elevationGain: 1200,
+    distance: 200,
+    elevationGain: 1000,
     movingTime: 28800,
     elapsedTime: 32400,
     type: "Ride",
     eventType: "BRM200",
-    classificationSource: "auto-name",
-    needsConfirmation: false,
+    classificationSource: "auto-distance",
+    needsConfirmation: true,
     manualOverride: false,
     homologationNumber: null,
     dnf: false,
-    sourceUrl: "https://www.strava.com/activities/12345",
+    sourceUrl: `https://www.strava.com/activities/${id}`,
     startLat: null,
     startLng: null,
     endLat: null,
@@ -208,21 +221,37 @@ describe("excludeFromAwards field", () => {
     endRegion: null,
     isNotableInternational: false,
     excludeFromAwards: false,
-  };
+    ...overrides,
+  });
 
   beforeEach(async () => {
     await db.activities.clear();
   });
 
-  it("should default excludeFromAwards to false on existing activities after migration", async () => {
-    // Insert a record without the field (simulating a pre-migration record)
-    await db.activities.add({
-      ...sampleActivity,
-      stravaId: "exclude-migration-test",
-    } as Activity);
+  it("sets excludeFromAwards to true for all given ids", async () => {
+    await db.activities.add(makeActivity("ex-1", { excludeFromAwards: false }));
+    await db.activities.add(makeActivity("ex-2", { excludeFromAwards: false }));
 
-    const result = await db.activities.get("exclude-migration-test");
-    expect(result).toBeDefined();
-    expect(result!.excludeFromAwards).toBe(false);
+    await bulkExcludeFromAwards(["ex-1", "ex-2"]);
+
+    const a1 = await db.activities.get("ex-1");
+    const a2 = await db.activities.get("ex-2");
+    expect(a1!.excludeFromAwards).toBe(true);
+    expect(a2!.excludeFromAwards).toBe(true);
+  });
+
+  it("clears excludeFromAwards for all given ids", async () => {
+    await db.activities.add(makeActivity("inc-1", { excludeFromAwards: true }));
+
+    await bulkIncludeInAwards(["inc-1"]);
+
+    const a1 = await db.activities.get("inc-1");
+    expect(a1!.excludeFromAwards).toBe(false);
+  });
+
+  it("is a no-op for empty array", async () => {
+    await expect(bulkExcludeFromAwards([])).resolves.not.toThrow();
+    await expect(bulkIncludeInAwards([])).resolves.not.toThrow();
   });
 });
+

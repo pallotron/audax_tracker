@@ -191,3 +191,21 @@ export async function bulkSetDnf(ids: string[], dnf: boolean): Promise<void> {
     }
   });
 }
+
+export async function bulkExcludeFromAwards(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  await db.transaction("rw", db.activities, async () => {
+    for (const id of ids) {
+      await db.activities.update(id, { excludeFromAwards: true });
+    }
+  });
+}
+
+export async function bulkIncludeInAwards(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  await db.transaction("rw", db.activities, async () => {
+    for (const id of ids) {
+      await db.activities.update(id, { excludeFromAwards: false });
+    }
+  });
+}
