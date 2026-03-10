@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { db, type Activity } from "../db/database";
+import { db, type Activity, setExcludeFromAwards, confirmActivity } from "../db/database";
 import type { EventType } from "../db/types";
 import { EventTypeBadge } from "./EventTypeBadge";
 
@@ -32,6 +32,80 @@ function formatDuration(seconds: number): string {
   return `${h}h ${String(m).padStart(2, "0")}m`;
 }
 
+interface AwardsStatusIconProps {
+  activity: Activity;
+  onExclude: () => void;
+  onInclude: () => void;
+  onConfirm: () => void;
+}
+
+function AwardsStatusIcon({ activity, onExclude, onInclude, onConfirm }: AwardsStatusIconProps) {
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const isUnconfirmed = activity.needsConfirmation && !activity.manualOverride && !activity.excludeFromAwards;
+  const isExcluded = activity.excludeFromAwards;
+
+  if (isUnconfirmed) {
+    return (
+      <div className="relative">
+        <button
+          onClick={() => setPopoverOpen((v) => !v)}
+          title="Not counting — needs confirmation"
+          className="text-amber-500 hover:text-amber-600 text-sm font-bold w-5 text-center"
+        >
+          ?
+        </button>
+        {popoverOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-10"
+              onClick={() => setPopoverOpen(false)}
+            />
+            <div className="absolute right-0 top-6 z-20 w-52 rounded-lg border border-gray-200 bg-white shadow-lg p-2">
+              <p className="text-xs text-gray-500 px-2 py-1 border-b border-gray-100 mb-1 truncate">
+                {activity.name}
+              </p>
+              <button
+                onClick={() => { onConfirm(); setPopoverOpen(false); }}
+                className="w-full text-left text-xs text-green-700 hover:bg-green-50 rounded px-2 py-1.5 flex items-center gap-2"
+              >
+                <span>✓</span> Confirm as {activity.eventType}
+              </button>
+              <button
+                onClick={() => { onExclude(); setPopoverOpen(false); }}
+                className="w-full text-left text-xs text-red-700 hover:bg-red-50 rounded px-2 py-1.5 flex items-center gap-2"
+              >
+                <span>✕</span> Exclude from awards
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  if (isExcluded) {
+    return (
+      <button
+        onClick={onInclude}
+        title="Manually excluded from awards — click to include"
+        className="text-red-500 hover:text-red-600 text-sm font-bold w-5 text-center"
+      >
+        ✕
+      </button>
+    );
+  }
+
+  return (
+    <button
+      onClick={onExclude}
+      title="Counting towards awards — click to exclude"
+      className="text-green-500 hover:text-green-600 text-sm font-bold w-5 text-center"
+    >
+      ✓
+    </button>
+  );
+}
+
 export function ActivityRow({ activity, selected, onToggle }: ActivityRowProps) {
   const [editing, setEditing] = useState(false);
   const [eventType, setEventType] = useState<EventType>(activity.eventType);
@@ -39,6 +113,16 @@ export function ActivityRow({ activity, selected, onToggle }: ActivityRowProps) 
     activity.homologationNumber ?? ""
   );
   const [dnf, setDnf] = useState(activity.dnf);
+
+  const handleExclude = async () => {
+    await setExcludeFromAwards(activity.stravaId, true);
+  };
+  const handleInclude = async () => {
+    await setExcludeFromAwards(activity.stravaId, false);
+  };
+  const handleConfirm = async () => {
+    await confirmActivity(activity.stravaId);
+  };
 
   const handleSave = async () => {
     await db.activities.update(activity.stravaId, {
@@ -136,6 +220,14 @@ export function ActivityRow({ activity, selected, onToggle }: ActivityRowProps) 
         ) : (
           activity.homologationNumber ?? "-"
         )}
+      </td>
+      <td className="whitespace-nowrap px-3 py-2 text-sm text-center">
+        <AwardsStatusIcon
+          activity={activity}
+          onExclude={handleExclude}
+          onInclude={handleInclude}
+          onConfirm={handleConfirm}
+        />
       </td>
       <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500">
         {activity.startRegion && activity.startCountry

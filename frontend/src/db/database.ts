@@ -209,3 +209,11 @@ export async function bulkIncludeInAwards(ids: string[]): Promise<void> {
     }
   });
 }
+
+export async function setExcludeFromAwards(id: string, exclude: boolean): Promise<void> {
+  await db.activities.update(id, { excludeFromAwards: exclude });
+}
+
+export async function confirmActivity(id: string): Promise<void> {
+  await db.activities.update(id, { manualOverride: true, needsConfirmation: false });
+}

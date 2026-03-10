@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, bulkConfirm, bulkSetType, bulkSetDnf, type Activity } from "../db/database";
+import { db, bulkConfirm, bulkSetType, bulkSetDnf, bulkExcludeFromAwards, bulkIncludeInAwards, type Activity } from "../db/database";
 import type { EventType } from "../db/types";
 import { useSyncContext } from "../context/SyncContext";
 import { ActivityRow } from "../components/ActivityRow";
@@ -172,6 +172,16 @@ export default function ActivitiesPage() {
 
   const handleBulkSetDnf = useCallback(async (dnf: boolean) => {
     await bulkSetDnf(Array.from(selectedIds), dnf);
+    setSelectedIds(new Set());
+  }, [selectedIds]);
+
+  const handleBulkExcludeFromAwards = useCallback(async () => {
+    await bulkExcludeFromAwards(Array.from(selectedIds));
+    setSelectedIds(new Set());
+  }, [selectedIds]);
+
+  const handleBulkIncludeInAwards = useCallback(async () => {
+    await bulkIncludeInAwards(Array.from(selectedIds));
     setSelectedIds(new Set());
   }, [selectedIds]);
 
@@ -392,6 +402,9 @@ export default function ActivitiesPage() {
                     )}
                   </th>
                 ))}
+                <th className="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Awards
+                </th>
                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Start
                 </th>
@@ -445,6 +458,8 @@ export default function ActivitiesPage() {
         onConfirm={handleBulkConfirm}
         onSetType={handleBulkSetType}
         onSetDnf={handleBulkSetDnf}
+        onExcludeFromAwards={handleBulkExcludeFromAwards}
+        onIncludeInAwards={handleBulkIncludeInAwards}
         onClear={clearSelection}
       />
     </div>
