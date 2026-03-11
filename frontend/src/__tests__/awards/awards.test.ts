@@ -40,7 +40,7 @@ function makeActivity(overrides: Partial<AwardsActivity> = {}): AwardsActivity {
 
 describe("checkRrtyYears", () => {
   it("returns empty set when no activities", () => {
-    expect(checkRrtyYears([])).toEqual(new Set());
+    expect(checkRrtyYears([])).toEqual(new Map());
   });
 
   it("returns the year a 12-month streak ends", () => {
@@ -62,7 +62,7 @@ describe("checkRrtyYears", () => {
         makeActivity({ date: `${lastYear}-${String(i + 7).padStart(2, "0")}-15` })
       ),
     ];
-    expect(checkRrtyYears(activities)).toEqual(new Set());
+    expect(checkRrtyYears(activities)).toEqual(new Map());
   });
 
   it("excludes DNF activities", () => {
@@ -73,7 +73,7 @@ describe("checkRrtyYears", () => {
         dnf: i === 5,
       })
     );
-    expect(checkRrtyYears(activities)).toEqual(new Set());
+    expect(checkRrtyYears(activities)).toEqual(new Map());
   });
 });
 
@@ -87,13 +87,13 @@ describe("checkBrevetKm", () => {
   it("counts BRM activities into the correct audax season", () => {
     const a = makeActivity({ date: "2024-11-15", eventType: "BRM300", distance: 300 });
     const result = checkBrevetKm([a]);
-    expect(result.get("2024-25")).toBe(300);
+    expect(result.get("2024-25")?.total).toBe(300);
   });
 
   it("counts Permanent activities", () => {
     const a = makeActivity({ date: "2025-03-15", eventType: "Permanent", distance: 200 });
     const result = checkBrevetKm([a]);
-    expect(result.get("2024-25")).toBe(200);
+    expect(result.get("2024-25")?.total).toBe(200);
   });
 
   it("does not count PBP toward Brevet 2000/5000", () => {
@@ -104,12 +104,12 @@ describe("checkBrevetKm", () => {
 
   it("assigns Jan 2025 to season 2024-25 (not 2025-26)", () => {
     const a = makeActivity({ date: "2025-01-15", eventType: "BRM200", distance: 200 });
-    expect(checkBrevetKm([a]).get("2024-25")).toBe(200);
+    expect(checkBrevetKm([a]).get("2024-25")?.total).toBe(200);
   });
 
   it("assigns Nov 2025 to season 2025-26", () => {
     const a = makeActivity({ date: "2025-11-15", eventType: "BRM200", distance: 200 });
-    expect(checkBrevetKm([a]).get("2025-26")).toBe(200);
+    expect(checkBrevetKm([a]).get("2025-26")?.total).toBe(200);
   });
 
   it("skips DNF activities", () => {
@@ -163,7 +163,7 @@ describe("checkFourProvinces", () => {
       makeActivity({ date: "2025-06-01", startRegion: "Ulster" }),
     ];
     const result = checkFourProvinces(activities);
-    expect(result.get(2025)?.met).toBe(true);
+    expect(result.get("2024-25")?.met).toBe(true);
   });
 
   it("marks year as not met when only 3 provinces covered", () => {
@@ -173,13 +173,13 @@ describe("checkFourProvinces", () => {
       makeActivity({ date: "2025-05-01", startRegion: "Connacht" }),
     ];
     const result = checkFourProvinces(activities);
-    expect(result.get(2025)?.met).toBe(false);
+    expect(result.get("2024-25")?.met).toBe(false);
   });
 
   it("tracks which activities covered each province", () => {
     const act = makeActivity({ date: "2025-03-01", startRegion: "Munster" });
     const result = checkFourProvinces([act]);
-    expect(result.get(2025)?.provinces["Munster"]).toHaveLength(1);
+    expect(result.get("2024-25")?.provinces["Munster"]).toHaveLength(1);
   });
 
   it("ignores activities without region data", () => {
@@ -382,6 +382,6 @@ describe("checkBrevetKm — award eligibility", () => {
     const result = checkBrevetKm(activities);
     const season = activitySeason("2025-06-01");
     // Only the confirmed activity should count
-    expect(result.get(season)).toBe(200);
+    expect(result.get(season)?.total).toBe(200);
   });
 });

@@ -30,16 +30,22 @@ function addMonths(yearMonth: string, n: number): string {
 
 // ── RRTY per year ─────────────────────────────────────────────────────────────
 
-export function checkRrtyYears(activities: AwardsActivity[]): Set<number> {
+export function checkRrtyYears(activities: AwardsActivity[]): Map<number, AwardsActivity[]> {
   const qualifying = activities.filter(
     (a) => isAwardEligible(a) && a.eventType !== null && a.distance >= 200
   );
-  if (qualifying.length === 0) return new Set();
+  if (qualifying.length === 0) return new Map();
 
-  const monthSet = new Set(qualifying.map((a) => a.date.substring(0, 7)));
-  const sortedMonths = [...monthSet].sort();
+  const byMonth = new Map<string, AwardsActivity>();
+  // Prefer the earliest eligible activity in a month
+  const sortedQualifying = [...qualifying].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  for (const a of sortedQualifying) {
+    const m = a.date.substring(0, 7);
+    if (!byMonth.has(m)) byMonth.set(m, a);
+  }
 
-  const achieved = new Set<number>();
+  const sortedMonths = [...byMonth.keys()].sort();
+  const achieved = new Map<number, AwardsActivity[]>();
   let streakStart = 0;
 
   for (let i = 1; i <= sortedMonths.length; i++) {
@@ -51,7 +57,14 @@ export function checkRrtyYears(activities: AwardsActivity[]): Set<number> {
       const streakLen = i - streakStart;
       if (streakLen >= 12) {
         for (let j = streakStart + 11; j < i; j++) {
-          achieved.add(parseInt(sortedMonths[j].substring(0, 4)));
+          const year = parseInt(sortedMonths[j].substring(0, 4));
+          if (!achieved.has(year)) {
+            const streakRides: AwardsActivity[] = [];
+            for (let k = j - 11; k <= j; k++) {
+              streakRides.push(byMonth.get(sortedMonths[k])!);
+            }
+            achieved.set(year, streakRides);
+          }
         }
       }
       streakStart = i;
@@ -77,12 +90,22 @@ export function activitySeason(dateStr: string): string {
   return `${year - 1}-${String(year).slice(2)}`;
 }
 
-export function checkBrevetKm(activities: AwardsActivity[]): Map<string, number> {
-  const result = new Map<string, number>();
+export interface BrevetKmStatus {
+  total: number;
+  activities: AwardsActivity[];
+}
+
+export function checkBrevetKm(activities: AwardsActivity[]): Map<string, BrevetKmStatus> {
+  const result = new Map<string, BrevetKmStatus>();
   for (const a of activities) {
     if (!isAwardEligible(a) || !BREVET_TYPES.includes(a.eventType as EventType)) continue;
     const season = activitySeason(a.date);
-    result.set(season, (result.get(season) ?? 0) + a.distance);
+    if (!result.has(season)) {
+      result.set(season, { total: 0, activities: [] });
+    }
+    const status = result.get(season)!;
+    status.total += a.distance;
+    status.activities.push(a);
   }
   return result;
 }
@@ -92,6 +115,7 @@ export function checkBrevetKm(activities: AwardsActivity[]): Map<string, number>
 export interface SuperRandonneurStatus {
   met: boolean;
   distances: Set<EventType>;
+  activities: AwardsActivity[];
 }
 
 export function checkSuperRandonneur(
@@ -104,10 +128,13 @@ export function checkSuperRandonneur(
     if (!isAwardEligible(a) || !srDistances.includes(a.eventType as any)) continue;
     const season = activitySeason(a.date);
     if (!result.has(season)) {
-      result.set(season, { met: false, distances: new Set() });
+      result.set(season, { met: false, distances: new Set(), activities: [] });
     }
     const status = result.get(season)!;
-    status.distances.add(a.eventType as EventType);
+    if (!status.distances.has(a.eventType as EventType)) {
+      status.distances.add(a.eventType as EventType);
+      status.activities.push(a);
+    }
     if (srDistances.every((d) => status.distances.has(d))) {
       status.met = true;
     }
@@ -119,15 +146,15 @@ export function checkSuperRandonneur(
 
 const PROVINCES = ["Ulster", "Leinster", "Munster", "Connacht"] as const;
 
-export interface FourProvincesYear {
+export interface FourProvincesSeason {
   met: boolean;
   provinces: Partial<Record<string, AwardsActivity[]>>;
 }
 
 export function checkFourProvinces(
   activities: AwardsActivity[]
-): Map<number, FourProvincesYear> {
-  const result = new Map<number, FourProvincesYear>();
+): Map<string, FourProvincesSeason> {
+  const result = new Map<string, FourProvincesSeason>();
 
   const qualifying = activities.filter(
     (a) =>
@@ -139,11 +166,11 @@ export function checkFourProvinces(
   );
 
   for (const a of qualifying) {
-    const year = new Date(a.date).getFullYear();
-    if (!result.has(year)) result.set(year, { met: false, provinces: {} });
-    const yearData = result.get(year)!;
-    if (!yearData.provinces[a.startRegion!]) yearData.provinces[a.startRegion!] = [];
-    yearData.provinces[a.startRegion!]!.push(a);
+    const season = activitySeason(a.date);
+    if (!result.has(season)) result.set(season, { met: false, provinces: {} });
+    const seasonData = result.get(season)!;
+    if (!seasonData.provinces[a.startRegion!]) seasonData.provinces[a.startRegion!] = [];
+    seasonData.provinces[a.startRegion!]!.push(a);
   }
 
   for (const data of result.values()) {

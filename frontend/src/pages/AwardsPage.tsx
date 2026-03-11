@@ -55,11 +55,35 @@ function toAwards(a: Activity): AwardsActivity {
   };
 }
 
-function TrophyBadge({ label }: { label: string | number }) {
-  return (
+function TrophyBadge({ label, activities }: { label: string | number; activities?: AwardsActivity[] }) {
+  const badge = (
     <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
       🏆 {label}
     </span>
+  );
+
+  if (!activities || activities.length === 0) return badge;
+
+  return (
+    <details className="group relative inline-block">
+      <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden hover:opacity-80">
+        {badge}
+      </summary>
+      <div className="absolute left-0 z-10 mt-1 w-64 rounded-md border border-gray-200 bg-white p-2 shadow-xl">
+        <ul className="flex flex-col gap-1">
+          {activities.map((a) => (
+            <li key={a.stravaId} className="truncate text-xs">
+              <span className="text-gray-400 mr-1.5 tabular-nums">
+                {new Date(a.date).toLocaleDateString("en-IE", { month: "short", year: "2-digit" })}
+              </span>
+              <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-orange-600 hover:underline" title={a.name}>
+                {a.name}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </details>
   );
 }
 
@@ -184,7 +208,7 @@ export default function AwardsPage() {
             allSeasons
               .filter((s) => superRandonneur.get(s)?.met)
               .map((season) => (
-                <TrophyBadge key={season} label={season} />
+                <TrophyBadge key={season} label={season} activities={superRandonneur.get(season)?.activities} />
               ))
           )}
         </AwardRow>
@@ -196,8 +220,8 @@ export default function AwardsPage() {
           {rrtyYears.size === 0 ? (
             <span className="text-xs text-gray-400 italic">No completed years yet</span>
           ) : (
-            [...rrtyYears].sort().map((year) => (
-              <TrophyBadge key={year} label={year} />
+            [...rrtyYears.entries()].sort(([a], [b]) => a - b).map(([year, activities]) => (
+              <TrophyBadge key={year} label={year} activities={activities} />
             ))
           )}
         </AwardRow>
@@ -206,13 +230,13 @@ export default function AwardsPage() {
           label="Brevet 2000"
           description="Ride 2000 km of BRM/Permanent events in an audax season (Nov–Oct)."
         >
-          {allSeasons.filter((s) => (brevetKm.get(s) ?? 0) >= 2000).length === 0 ? (
+          {allSeasons.filter((s) => (brevetKm.get(s)?.total ?? 0) >= 2000).length === 0 ? (
             <span className="text-xs text-gray-400 italic">No completed seasons yet</span>
           ) : (
             allSeasons
-              .filter((s) => (brevetKm.get(s) ?? 0) >= 2000)
+              .filter((s) => (brevetKm.get(s)?.total ?? 0) >= 2000)
               .map((season) => (
-                <TrophyBadge key={season} label={`${season} (${Math.round(brevetKm.get(season)!)} km)`} />
+                <TrophyBadge key={season} label={`${season} (${Math.round(brevetKm.get(season)!.total)} km)`} activities={brevetKm.get(season)?.activities} />
               ))
           )}
         </AwardRow>
@@ -221,30 +245,31 @@ export default function AwardsPage() {
           label="Brevet 5000"
           description="Ride 5000 km of BRM/Permanent events in an audax season (Nov–Oct)."
         >
-          {allSeasons.filter((s) => (brevetKm.get(s) ?? 0) >= 5000).length === 0 ? (
+          {allSeasons.filter((s) => (brevetKm.get(s)?.total ?? 0) >= 5000).length === 0 ? (
             <span className="text-xs text-gray-400 italic">No completed seasons yet</span>
           ) : (
             allSeasons
-              .filter((s) => (brevetKm.get(s) ?? 0) >= 5000)
+              .filter((s) => (brevetKm.get(s)?.total ?? 0) >= 5000)
               .map((season) => (
-                <TrophyBadge key={season} label={`${season} (${Math.round(brevetKm.get(season)!)} km)`} />
+                <TrophyBadge key={season} label={`${season} (${Math.round(brevetKm.get(season)!.total)} km)`} activities={brevetKm.get(season)?.activities} />
               ))
           )}
         </AwardRow>
 
         <AwardRow
           label="4 Provinces of Ireland"
-          description="Start a 200 km+ brevet in each of Ulster, Leinster, Munster, and Connacht in a calendar year."
+          description="Start a 200 km+ brevet in each of Ulster, Leinster, Munster, and Connacht in an audax season (Nov–Oct)."
         >
           {[...fourProvinces.entries()].filter(([, d]) => d.met).length === 0 ? (
-            <span className="text-xs text-gray-400 italic">No completed years yet</span>
+            <span className="text-xs text-gray-400 italic">No completed seasons yet</span>
           ) : (
             [...fourProvinces.entries()]
               .filter(([, d]) => d.met)
-              .sort(([a], [b]) => a - b)
-              .map(([year]) => (
-                <TrophyBadge key={year} label={year} />
-              ))
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([season, data]) => {
+                const activities = Object.values(data.provinces).flat();
+                return <TrophyBadge key={season} label={season} activities={activities} />;
+              })
           )}
         </AwardRow>
 
