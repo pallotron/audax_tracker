@@ -51,6 +51,7 @@ jobs:
         env:
           VITE_STRAVA_CLIENT_ID: ${{ secrets.VITE_STRAVA_CLIENT_ID }}
           VITE_OAUTH_WORKER_URL: ${{ secrets.VITE_OAUTH_WORKER_URL }}
+          VITE_OAUTH_CALLBACK_URL: ${{ secrets.VITE_OAUTH_CALLBACK_URL }}
 
       - name: Deploy to Cloudflare Pages
         run: npx wrangler pages deploy dist --project-name audax-tracker --branch main
