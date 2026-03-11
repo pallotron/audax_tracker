@@ -10,4 +10,4 @@ routes = [
 STRAVA_CLIENT_ID = "74768"
 
 # Secret: STRAVA_CLIENT_SECRET (set via `wrangler secret put`)
-# Secret: ALLOWED_ORIGIN (set via `wrangler secret put`)
+# Secret: ALLOWED_ORIGINS (set via `wrangler secret put`, comma-separated list of allowed origins)

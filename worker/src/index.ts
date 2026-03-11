@@ -1,27 +1,30 @@
 export interface Env {
   STRAVA_CLIENT_ID: string;
   STRAVA_CLIENT_SECRET: string;
-  ALLOWED_ORIGIN: string;
+  ALLOWED_ORIGINS: string;
 }
 
 const STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token";
 
-function corsHeaders(origin: string, allowedOrigin: string): HeadersInit {
-  // In dev, allow any origin if ALLOWED_ORIGIN is not set
-  const effectiveOrigin = allowedOrigin || origin || "*";
-  return {
-    "Access-Control-Allow-Origin": effectiveOrigin,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-  };
+function corsHeaders(origin: string, allowedOrigins: string[]): HeadersInit {
+  if (allowedOrigins.includes(origin)) {
+    return {
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    };
+  }
+  // Origin not in allowlist — return no CORS headers; browser blocks the request
+  return {};
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const headers = corsHeaders(
-      request.headers.get("Origin") || "",
-      env.ALLOWED_ORIGIN
-    );
+    const allowedOrigins = env.ALLOWED_ORIGINS
+      ? env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+      : [];
+    const origin = request.headers.get("Origin") || "";
+    const headers = corsHeaders(origin, allowedOrigins);
 
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers });
