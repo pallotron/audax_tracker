@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   checkRrtyYears,
   checkBrevetKm,
+  checkSuperRandonneur,
   checkFourProvinces,
   checkEasterFleche,
   checkFourNations,
@@ -114,6 +115,36 @@ describe("checkBrevetKm", () => {
   it("skips DNF activities", () => {
     const a = makeActivity({ date: "2025-03-15", eventType: "BRM200", distance: 200, dnf: true });
     expect(checkBrevetKm([a]).size).toBe(0);
+  });
+});
+
+// ── Super Randonneur ─────────────────────────────────────────────────────────
+
+describe("checkSuperRandonneur", () => {
+  it("returns empty map when no activities", () => {
+    expect(checkSuperRandonneur([])).toEqual(new Map());
+  });
+
+  it("marks season as not met when missing distances", () => {
+    const activities = [
+      makeActivity({ date: "2025-04-15", eventType: "BRM200", distance: 200 }),
+      makeActivity({ date: "2025-05-15", eventType: "BRM300", distance: 300 }),
+    ];
+    const result = checkSuperRandonneur(activities);
+    expect(result.get("2024-25")?.met).toBe(false);
+    expect(result.get("2024-25")?.distances.size).toBe(2);
+  });
+
+  it("marks season as met when 200, 300, 400, 600 completed", () => {
+    const activities = [
+      makeActivity({ date: "2025-04-15", eventType: "BRM200", distance: 200 }),
+      makeActivity({ date: "2025-05-15", eventType: "BRM300", distance: 300 }),
+      makeActivity({ date: "2025-06-15", eventType: "BRM400", distance: 400 }),
+      makeActivity({ date: "2025-07-15", eventType: "BRM600", distance: 600 }),
+    ];
+    const result = checkSuperRandonneur(activities);
+    expect(result.get("2024-25")?.met).toBe(true);
+    expect(result.get("2024-25")?.distances.size).toBe(4);
   });
 });
 
