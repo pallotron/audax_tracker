@@ -4,7 +4,7 @@ import { config } from "../config";
 import appIcon from "../assets/app-icon.png";
 
 export default function LoginPage() {
-  const authUrl = getStravaAuthUrl(config.stravaClientId, config.redirectUri);
+  const authUrl = getStravaAuthUrl(config.stravaClientId, config.oauthCallbackUrl);
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center">

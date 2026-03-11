@@ -6,7 +6,7 @@ import { config } from "../config";
 
 export default function AboutPage() {
   const { isAuthenticated } = useAuth();
-  const authUrl = getStravaAuthUrl(config.stravaClientId, config.redirectUri);
+  const authUrl = getStravaAuthUrl(config.stravaClientId, config.oauthCallbackUrl);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
