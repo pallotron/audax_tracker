@@ -87,6 +87,34 @@ export function checkBrevetKm(activities: AwardsActivity[]): Map<string, number>
   return result;
 }
 
+// ── Super Randonneur ──────────────────────────────────────────────────────────
+
+export interface SuperRandonneurStatus {
+  met: boolean;
+  distances: Set<EventType>;
+}
+
+export function checkSuperRandonneur(
+  activities: AwardsActivity[]
+): Map<string, SuperRandonneurStatus> {
+  const result = new Map<string, SuperRandonneurStatus>();
+  const srDistances = ["BRM200", "BRM300", "BRM400", "BRM600"] as const;
+
+  for (const a of activities) {
+    if (!isAwardEligible(a) || !srDistances.includes(a.eventType as any)) continue;
+    const season = activitySeason(a.date);
+    if (!result.has(season)) {
+      result.set(season, { met: false, distances: new Set() });
+    }
+    const status = result.get(season)!;
+    status.distances.add(a.eventType as EventType);
+    if (srDistances.every((d) => status.distances.has(d))) {
+      status.met = true;
+    }
+  }
+  return result;
+}
+
 // ── 4 Provinces ───────────────────────────────────────────────────────────────
 
 const PROVINCES = ["Ulster", "Leinster", "Munster", "Connacht"] as const;

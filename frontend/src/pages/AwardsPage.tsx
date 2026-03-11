@@ -5,6 +5,7 @@ import { UnconfirmedRidesNotice } from "../components/UnconfirmedRidesNotice";
 import {
   checkRrtyYears,
   checkBrevetKm,
+  checkSuperRandonneur,
   checkFourProvinces,
   checkEasterFleche,
   checkFourNations,
@@ -107,6 +108,7 @@ export default function AwardsPage() {
 
   const rrtyYears = checkRrtyYears(awards);
   const brevetKm = checkBrevetKm(awards);
+  const superRandonneur = checkSuperRandonneur(awards);
   const fourProvinces = checkFourProvinces(awards);
   const easterFleches = checkEasterFleche(awards);
   const fourNations = checkFourNations(awards);
@@ -171,6 +173,21 @@ export default function AwardsPage() {
       {/* ── Annual Awards ───────────────────────────────────────────── */}
       <section className="space-y-3">
         <SectionHeading>Annual Awards</SectionHeading>
+
+        <AwardRow
+          label="Super Randonneur"
+          description={`Complete a BRM 200, 300, 400, and 600 in the same audax season (Nov–Oct). Total completed: ${[...superRandonneur.values()].filter(s => s.met).length}`}
+        >
+          {allSeasons.filter((s) => superRandonneur.get(s)?.met).length === 0 ? (
+            <span className="text-xs text-gray-400 italic">No completed seasons yet</span>
+          ) : (
+            allSeasons
+              .filter((s) => superRandonneur.get(s)?.met)
+              .map((season) => (
+                <TrophyBadge key={season} label={season} />
+              ))
+          )}
+        </AwardRow>
 
         <AwardRow
           label="RRTY — Randonneur Round The Year"
