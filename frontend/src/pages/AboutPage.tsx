@@ -51,8 +51,16 @@ export default function AboutPage() {
             <li>
               <span className="font-medium text-gray-800">Review and correct</span> — on the
               Activities page you can confirm auto-classified events, manually set the event type,
-              mark rides as DNF (Did Not Finish), or use bulk actions to process many activities
-              at once.
+              mark rides as DNF (Did Not Finish), or add homologation numbers (retrievable from{" "}
+              <a
+                href="https://myaccount.audax-club-parisien.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-orange-600 hover:underline"
+              >
+                Audax Club Parisien
+              </a>
+              ).
             </li>
             <li>
               <span className="font-medium text-gray-800">Track qualifications</span> — the

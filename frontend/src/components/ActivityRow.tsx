@@ -215,6 +215,7 @@ export function ActivityRow({ activity, selected, onToggle }: ActivityRowProps) 
             value={homologation}
             onChange={(e) => setHomologation(e.target.value)}
             placeholder="Homologation #"
+            title="Retrieve homologation # from https://myaccount.audax-club-parisien.com/"
             className="w-28 rounded border border-gray-300 px-1 py-0.5 text-xs"
           />
         ) : (

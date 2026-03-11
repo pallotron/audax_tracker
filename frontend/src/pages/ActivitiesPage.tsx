@@ -369,7 +369,20 @@ export default function ActivitiesPage() {
         </p>
       ) : (
         <>
-        <ClassificationLegend />
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-4">
+          <ClassificationLegend />
+          <div className="text-xs text-gray-500">
+            Homologation # can be retrieved from{" "}
+            <a
+              href="https://myaccount.audax-club-parisien.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-orange-600 hover:underline font-medium"
+            >
+              Audax Club Parisien
+            </a>
+          </div>
+        </div>
         <div className="overflow-x-auto rounded-lg border border-gray-200">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
