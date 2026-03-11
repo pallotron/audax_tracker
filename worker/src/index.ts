@@ -40,6 +40,10 @@ export default {
       return handleTokenRefresh(request, env, headers);
     }
 
+    if (url.pathname === "/oauth/callback" && request.method === "GET") {
+      return handleOAuthCallback(request, env, allowedOrigins);
+    }
+
     return new Response("Not Found", { status: 404, headers });
   },
 };
@@ -106,4 +110,56 @@ async function handleTokenRefresh(
     status: response.status,
     headers: { ...headers, "Content-Type": "application/json" },
   });
+}
+
+async function handleOAuthCallback(
+  request: Request,
+  env: Env,
+  allowedOrigins: string[]
+): Promise<Response> {
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+
+  if (!state) {
+    return new Response("Missing state parameter", { status: 400 });
+  }
+
+  let origin: string;
+  try {
+    origin = atob(state);
+  } catch {
+    return new Response("Invalid state parameter", { status: 400 });
+  }
+
+  if (!allowedOrigins.includes(origin)) {
+    return new Response("Origin not allowed", { status: 403 });
+  }
+
+  const callbackBase = `${origin}/callback`;
+
+  if (!code) {
+    const error = url.searchParams.get("error") || "no_code";
+    return Response.redirect(`${callbackBase}#error=${encodeURIComponent(error)}`, 302);
+  }
+
+  const tokenResponse = await fetch(STRAVA_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      client_id: env.STRAVA_CLIENT_ID,
+      client_secret: env.STRAVA_CLIENT_SECRET,
+      code,
+      grant_type: "authorization_code",
+    }),
+  });
+
+  if (!tokenResponse.ok) {
+    const error = encodeURIComponent(`Token exchange failed: ${tokenResponse.status}`);
+    return Response.redirect(`${callbackBase}#error=${error}`, 302);
+  }
+
+  const tokens = await tokenResponse.text();
+  const encoded = btoa(tokens);
+  return Response.redirect(`${callbackBase}#tokens=${encoded}`, 302);
 }
