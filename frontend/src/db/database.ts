@@ -229,6 +229,7 @@ export interface BackupEntry {
   homologationNumber: string | null;
   dnf: boolean;
   excludeFromAwards: boolean;
+  isNotableInternational: boolean;
 }
 
 export interface BackupExport {
@@ -251,6 +252,7 @@ export async function exportBackup(): Promise<BackupExport> {
       homologationNumber: a.homologationNumber,
       dnf: a.dnf,
       excludeFromAwards: a.excludeFromAwards,
+      isNotableInternational: a.isNotableInternational,
     })),
   };
 }
@@ -285,6 +287,7 @@ export async function importBackup(data: unknown): Promise<void> {
         homologationNumber: entry.homologationNumber,
         dnf: entry.dnf,
         excludeFromAwards: entry.excludeFromAwards,
+        isNotableInternational: entry.isNotableInternational,
       });
     }
   });

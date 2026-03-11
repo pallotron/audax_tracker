@@ -106,8 +106,8 @@ describe("Activity database", () => {
   describe("exportBackup", () => {
     it("returns all activities with backup fields", async () => {
       await db.activities.bulkAdd([
-        { ...sampleActivity, stravaId: "1", excludeFromAwards: false, eventType: "BRM200", dnf: false },
-        { ...sampleActivity, stravaId: "2", excludeFromAwards: true, eventType: "BRM300", dnf: true },
+        { ...sampleActivity, stravaId: "1", excludeFromAwards: false, eventType: "BRM200", dnf: false, isNotableInternational: false },
+        { ...sampleActivity, stravaId: "2", excludeFromAwards: true, eventType: "BRM300", dnf: true, isNotableInternational: true },
       ]);
 
       const result = await exportBackup();
@@ -126,6 +126,7 @@ describe("Activity database", () => {
             homologationNumber: null,
             dnf: false,
             excludeFromAwards: false,
+            isNotableInternational: false,
           },
           {
             stravaId: "2",
@@ -136,6 +137,7 @@ describe("Activity database", () => {
             homologationNumber: null,
             dnf: true,
             excludeFromAwards: true,
+            isNotableInternational: true,
           },
         ])
       );
@@ -150,8 +152,8 @@ describe("Activity database", () => {
   describe("importBackup", () => {
     beforeEach(async () => {
       await db.activities.bulkAdd([
-        { ...sampleActivity, stravaId: "1", excludeFromAwards: false, eventType: "BRM200", dnf: false },
-        { ...sampleActivity, stravaId: "2", excludeFromAwards: false, eventType: "BRM300", dnf: false },
+        { ...sampleActivity, stravaId: "1", excludeFromAwards: false, eventType: "BRM200", dnf: false, isNotableInternational: false },
+        { ...sampleActivity, stravaId: "2", excludeFromAwards: false, eventType: "BRM300", dnf: false, isNotableInternational: false },
       ]);
     });
 
@@ -169,6 +171,7 @@ describe("Activity database", () => {
             homologationNumber: "123",
             dnf: false,
             excludeFromAwards: true,
+            isNotableInternational: true,
           },
           {
             stravaId: "2",
@@ -179,6 +182,7 @@ describe("Activity database", () => {
             homologationNumber: null,
             dnf: true,
             excludeFromAwards: false,
+            isNotableInternational: false,
           },
         ],
       });
@@ -191,6 +195,7 @@ describe("Activity database", () => {
       expect(a1!.manualOverride).toBe(true);
       expect(a1!.homologationNumber).toBe("123");
       expect(a1!.dnf).toBe(false);
+      expect(a1!.isNotableInternational).toBe(true);
 
       expect(a2!.excludeFromAwards).toBe(false);
       expect(a2!.eventType).toBe("BRM600");
@@ -198,6 +203,7 @@ describe("Activity database", () => {
       expect(a2!.needsConfirmation).toBe(true);
       expect(a2!.manualOverride).toBe(false);
       expect(a2!.dnf).toBe(true);
+      expect(a2!.isNotableInternational).toBe(false);
     });
 
     it("silently skips stravaIds not in the local database", async () => {
@@ -215,6 +221,7 @@ describe("Activity database", () => {
               homologationNumber: null,
               dnf: false,
               excludeFromAwards: true,
+              isNotableInternational: false,
             },
           ],
         })
