@@ -1,31 +1,41 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { exchangeCode } from "../strava/auth";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { config } from "../config";
+import type { StravaTokens } from "../strava/auth";
 
 export default function OAuthCallbackPage() {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const code = searchParams.get("code");
-    if (!code) {
-      setError("No authorization code received from Strava.");
+    const hash = window.location.hash.slice(1); // remove leading #
+    const params = new URLSearchParams(hash);
+
+    const errorParam = params.get("error");
+    if (errorParam) {
+      setError(`Strava authentication failed: ${errorParam}`);
+      // Clear the fragment from the URL
+      window.history.replaceState(null, "", window.location.pathname);
       return;
     }
 
-    exchangeCode(config.oauthWorkerUrl, code)
-      .then((tokens) => {
-        login(tokens);
-        navigate("/dashboard");
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : "Token exchange failed");
-      });
-  }, [searchParams, login, navigate]);
+    const tokensParam = params.get("tokens");
+    if (!tokensParam) {
+      setError("No tokens received from authentication.");
+      return;
+    }
+
+    try {
+      const tokens = JSON.parse(atob(tokensParam)) as StravaTokens;
+      // Clear the fragment from the URL before navigating
+      window.history.replaceState(null, "", window.location.pathname);
+      login(tokens);
+      navigate("/dashboard");
+    } catch {
+      setError("Failed to parse authentication tokens.");
+    }
+  }, [login, navigate]);
 
   if (error) {
     return (
