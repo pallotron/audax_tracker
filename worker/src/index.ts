@@ -163,5 +163,5 @@ async function handleOAuthCallback(
   const bytes = new TextEncoder().encode(tokens);
   const binString = Array.from(bytes).map((b) => String.fromCodePoint(b)).join("");
   const encoded = btoa(binString);
-  return Response.redirect(`${callbackBase}#tokens=${encoded}`, 302);
+  return Response.redirect(`${callbackBase}#tokens=${encodeURIComponent(encoded)}`, 302);
 }

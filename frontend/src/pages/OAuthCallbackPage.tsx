@@ -27,7 +27,8 @@ export default function OAuthCallbackPage() {
     }
 
     try {
-      const binString = atob(tokensParam);
+      const base64 = tokensParam.replace(/ /g, "+");
+      const binString = atob(base64);
       const bytes = new Uint8Array(binString.length);
       for (let i = 0; i < binString.length; i++) {
         bytes[i] = binString.charCodeAt(i);
