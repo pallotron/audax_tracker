@@ -1,4 +1,5 @@
 import { useMemo, useState, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, bulkConfirm, bulkSetType, bulkSetDnf, bulkExcludeFromAwards, bulkIncludeInAwards, type Activity } from "../db/database";
 import type { EventType } from "../db/types";
@@ -52,10 +53,13 @@ function getSortValue(a: Activity, key: SortKey): string | number {
 
 export default function ActivitiesPage() {
   const { sync, syncing, progress, error } = useSyncContext();
+  const [searchParams] = useSearchParams();
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
   const [audaxOnly, setAudaxOnly] = useState(false);
-  const [needsConfirmOnly, setNeedsConfirmOnly] = useState(false);
+  const [needsConfirmOnly, setNeedsConfirmOnly] = useState(
+    () => searchParams.get("needsConfirm") === "1"
+  );
   const [dnfOnly, setDnfOnly] = useState(false);
   const [textFilter, setTextFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("date");

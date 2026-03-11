@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type Activity } from "../db/database";
 import { useSyncContext } from "../context/SyncContext";
@@ -11,6 +11,8 @@ import {
 } from "../qualification/tracker";
 import { QualificationCard } from "../components/QualificationCard";
 import { Link } from "react-router-dom";
+import { UnconfirmedRidesNotice } from "../components/UnconfirmedRidesNotice";
+import { shouldShowMigrationNotice, dismissMigrationNotice as _dismiss } from "../utils/migrationNotice";
 
 
 function toQualifyingActivity(a: Activity): QualifyingActivity {
@@ -34,6 +36,17 @@ export default function DashboardPage() {
   const { sync, syncing, checking, hasPending, checkPending, progress, error, lastSync } = useSyncContext();
 
   const activities = useLiveQuery(() => db.activities.toArray(), []);
+
+  const unconfirmedCount = (activities ?? []).filter(
+    (a) => a.needsConfirmation && !a.manualOverride && !a.excludeFromAwards && a.eventType !== null
+  ).length;
+
+  const [showMigrationNotice, setShowMigrationNotice] = useState(shouldShowMigrationNotice);
+
+  const handleDismissMigrationNotice = useCallback(() => {
+    _dismiss();
+    setShowMigrationNotice(false);
+  }, []);
 
   // Check for new activities on page load
   useEffect(() => {
@@ -90,6 +103,26 @@ export default function DashboardPage() {
           )}
         </button>
       </div>
+
+      <UnconfirmedRidesNotice count={unconfirmedCount} />
+
+      {showMigrationNotice && (
+        <div className="flex items-start justify-between rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          <span>
+            Award filtering has been updated. Rides classified by distance now require confirmation to count.{" "}
+            <Link to="/activities?needsConfirm=1" className="font-medium underline hover:text-blue-900">
+              Review unconfirmed rides →
+            </Link>
+          </span>
+          <button
+            onClick={handleDismissMigrationNotice}
+            className="ml-4 text-blue-600 hover:text-blue-800 flex-shrink-0"
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {syncing && progress && (
         <div className="w-full rounded-full bg-gray-200 h-2.5 overflow-hidden">
