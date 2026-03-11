@@ -50,7 +50,7 @@ Parameters: `code` (query), `state` (query, base64-encoded origin)
 
 Logic:
 1. Decode `state` → origin
-2. Check origin against `ALLOWED_ORIGINS` list — return 400 if not found
+2. Check origin against `ALLOWED_ORIGINS` list — return 403 if not found
 3. Exchange `code` with Strava (`/oauth/token`)
 4. On success: redirect to `<origin>/callback#tokens=<base64(JSON)>`
 5. On failure: redirect to `<origin>/callback#error=<message>`
@@ -107,9 +107,10 @@ export const config = {
   stravaClientId: import.meta.env.VITE_STRAVA_CLIENT_ID as string,
   oauthWorkerUrl: import.meta.env.VITE_OAUTH_WORKER_URL as string,
   oauthCallbackUrl: import.meta.env.VITE_OAUTH_CALLBACK_URL as string,
-  redirectUri: `${window.location.origin}/callback`,
 };
 ```
+
+(`redirectUri` is removed — it is no longer used anywhere.)
 
 ### `.env.example`
 
