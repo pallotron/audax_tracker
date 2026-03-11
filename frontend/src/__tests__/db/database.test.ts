@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { db, type Activity, bulkConfirm, bulkSetType, bulkExcludeFromAwards, bulkIncludeInAwards } from "../../db/database";
+import { db, type Activity, bulkConfirm, bulkSetType, bulkExcludeFromAwards, bulkIncludeInAwards, exportExclusions, importExclusions } from "../../db/database";
 
 beforeEach(async () => {
   await db.activities.clear();
@@ -101,6 +101,111 @@ describe("Activity database", () => {
     await db.activities.add({ ...sampleActivity, excludeFromAwards: true });
     const result = await db.activities.get("12345");
     expect(result!.excludeFromAwards).toBe(true);
+  });
+
+  describe("exportExclusions", () => {
+    it("returns all activities with stravaId and excludeFromAwards", async () => {
+      await db.activities.bulkAdd([
+        { ...sampleActivity, stravaId: "1", excludeFromAwards: false },
+        { ...sampleActivity, stravaId: "2", excludeFromAwards: true },
+      ]);
+
+      const result = await exportExclusions();
+
+      expect(result.version).toBe(1);
+      expect(result.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+      expect(result.exclusions).toHaveLength(2);
+      expect(result.exclusions).toEqual(
+        expect.arrayContaining([
+          { stravaId: "1", excludeFromAwards: false },
+          { stravaId: "2", excludeFromAwards: true },
+        ])
+      );
+    });
+
+    it("returns empty exclusions array when no activities exist", async () => {
+      const result = await exportExclusions();
+      expect(result.exclusions).toHaveLength(0);
+    });
+  });
+
+  describe("importExclusions", () => {
+    beforeEach(async () => {
+      await db.activities.bulkAdd([
+        { ...sampleActivity, stravaId: "1", excludeFromAwards: false },
+        { ...sampleActivity, stravaId: "2", excludeFromAwards: false },
+      ]);
+    });
+
+    it("updates excludeFromAwards for matching activities", async () => {
+      await importExclusions({
+        version: 1,
+        exportedAt: "2026-03-11T10:00:00Z",
+        exclusions: [
+          { stravaId: "1", excludeFromAwards: true },
+          { stravaId: "2", excludeFromAwards: false },
+        ],
+      });
+
+      const a1 = await db.activities.get("1");
+      const a2 = await db.activities.get("2");
+      expect(a1!.excludeFromAwards).toBe(true);
+      expect(a2!.excludeFromAwards).toBe(false);
+    });
+
+    it("silently skips stravaIds not in the local database", async () => {
+      await expect(
+        importExclusions({
+          version: 1,
+          exportedAt: "2026-03-11T10:00:00Z",
+          exclusions: [{ stravaId: "unknown-999", excludeFromAwards: true }],
+        })
+      ).resolves.not.toThrow();
+    });
+
+    it("throws on wrong version", async () => {
+      await expect(
+        importExclusions({ version: 99, exportedAt: "", exclusions: [] })
+      ).rejects.toThrow("Unsupported exclusions file version");
+    });
+
+    it("throws when exclusions is not an array", async () => {
+      await expect(
+        importExclusions({ version: 1, exportedAt: "", exclusions: "bad" })
+      ).rejects.toThrow("Invalid exclusions file format");
+    });
+
+    it("throws when an entry is missing stravaId", async () => {
+      await expect(
+        importExclusions({
+          version: 1,
+          exportedAt: "",
+          exclusions: [{ excludeFromAwards: true }],
+        })
+      ).rejects.toThrow("Invalid exclusions file format");
+    });
+
+    it("throws when excludeFromAwards is not a boolean", async () => {
+      await expect(
+        importExclusions({
+          version: 1,
+          exportedAt: "",
+          exclusions: [{ stravaId: "1", excludeFromAwards: "yes" }],
+        })
+      ).rejects.toThrow("Invalid exclusions file format");
+    });
+
+    it("throws when data is null", async () => {
+      await expect(importExclusions(null)).rejects.toThrow(
+        "Invalid exclusions file format"
+      );
+    });
+
+    it("throws when data is a string", async () => {
+      await expect(importExclusions("not-an-object")).rejects.toThrow(
+        "Invalid exclusions file format"
+      );
+    });
   });
 });
 

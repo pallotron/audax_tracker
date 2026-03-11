@@ -217,3 +217,58 @@ export async function setExcludeFromAwards(id: string, exclude: boolean): Promis
 export async function confirmActivity(id: string): Promise<void> {
   await db.activities.update(id, { manualOverride: true, needsConfirmation: false });
 }
+
+// --- Exclusions export/import ---
+
+export interface ExclusionEntry {
+  stravaId: string;
+  excludeFromAwards: boolean;
+}
+
+export interface ExclusionsExport {
+  version: 1;
+  exportedAt: string;
+  exclusions: ExclusionEntry[];
+}
+
+export async function exportExclusions(): Promise<ExclusionsExport> {
+  const activities = await db.activities.toArray();
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    exclusions: activities.map((a) => ({
+      stravaId: a.stravaId,
+      excludeFromAwards: a.excludeFromAwards,
+    })),
+  };
+}
+
+export async function importExclusions(data: unknown): Promise<void> {
+  if (typeof data !== "object" || data === null || Array.isArray(data)) {
+    throw new Error("Invalid exclusions file format");
+  }
+  const d = data as Record<string, unknown>;
+  if (d.version !== 1) {
+    throw new Error("Unsupported exclusions file version");
+  }
+  if (!Array.isArray(d.exclusions)) {
+    throw new Error("Invalid exclusions file format");
+  }
+  for (const entry of d.exclusions) {
+    if (
+      typeof entry !== "object" ||
+      entry === null ||
+      typeof (entry as Record<string, unknown>).stravaId !== "string" ||
+      typeof (entry as Record<string, unknown>).excludeFromAwards !== "boolean"
+    ) {
+      throw new Error("Invalid exclusions file format");
+    }
+  }
+  await db.transaction("rw", db.activities, async () => {
+    for (const entry of d.exclusions as ExclusionEntry[]) {
+      await db.activities.update(entry.stravaId, {
+        excludeFromAwards: entry.excludeFromAwards,
+      });
+    }
+  });
+}
