@@ -20,6 +20,12 @@ interface SyncContextValue {
 
 const SyncContext = createContext<SyncContextValue | null>(null);
 
+export function computeAfterEpoch(lastSync: string | null): number | undefined {
+  return lastSync
+    ? Math.floor(new Date(lastSync).getTime() / 1000)
+    : undefined;
+}
+
 export function SyncProvider({ children }: { children: React.ReactNode }) {
   const { getAccessToken } = useAuth();
   const [syncing, setSyncing] = useState(false);
@@ -40,18 +46,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     try {
       const token = await getAccessToken();
 
-      // Use incremental sync (after last sync) to stay within Strava rate limits.
-      // Exception: if activities are missing lat/lng (pre-geo-feature data or first
-      // sync ever), do a one-time full fetch to backfill coordinates, then go back
-      // to incremental on all future syncs.
-      const hasMissingLatLng =
-        lastSync !== null &&
-        (await db.activities.filter((a) => a.startLat === null).count()) > 0;
-
-      const afterEpoch =
-        lastSync && !hasMissingLatLng
-          ? Math.floor(new Date(lastSync).getTime() / 1000)
-          : undefined;
+      const afterEpoch = computeAfterEpoch(lastSync);
 
       const activities = await fetchAllActivities(token, afterEpoch, (fetched) => {
         setProgress({ fetched, total: 0 });
@@ -103,7 +98,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       setSyncing(false);
       setProgress(null);
     }
-  }, [getAccessToken]);
+  }, [getAccessToken, lastSync]);
 
   const checkPending = useCallback(async () => {
     setChecking(true);
