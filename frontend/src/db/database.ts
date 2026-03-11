@@ -17,6 +17,7 @@ export interface Activity {
   manualOverride: boolean;
   homologationNumber: string | null;
   dnf: boolean;
+  excludeFromAwards: boolean;
   sourceUrl: string;
   startLat: number | null;
   startLng: number | null;
@@ -92,6 +93,16 @@ db.version(6).stores({
     activity.endCountry = null;
     activity.endRegion = null;
     activity.isNotableInternational = false;
+  });
+});
+
+db.version(7).stores({
+  activities: "stravaId, date, eventType, type, startCountry, startRegion",
+}).upgrade(tx => {
+  return tx.table("activities").toCollection().modify(activity => {
+    if (activity.excludeFromAwards === undefined) {
+      activity.excludeFromAwards = false;
+    }
   });
 });
 
@@ -179,4 +190,30 @@ export async function bulkSetDnf(ids: string[], dnf: boolean): Promise<void> {
       await db.activities.update(id, { dnf, manualOverride: true });
     }
   });
+}
+
+export async function bulkExcludeFromAwards(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  await db.transaction("rw", db.activities, async () => {
+    for (const id of ids) {
+      await db.activities.update(id, { excludeFromAwards: true });
+    }
+  });
+}
+
+export async function bulkIncludeInAwards(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  await db.transaction("rw", db.activities, async () => {
+    for (const id of ids) {
+      await db.activities.update(id, { excludeFromAwards: false });
+    }
+  });
+}
+
+export async function setExcludeFromAwards(id: string, exclude: boolean): Promise<void> {
+  await db.activities.update(id, { excludeFromAwards: exclude });
+}
+
+export async function confirmActivity(id: string): Promise<void> {
+  await db.activities.update(id, { manualOverride: true, needsConfirmation: false });
 }

@@ -23,10 +23,12 @@ interface BulkActionBarProps {
   onConfirm: () => void;
   onSetType: (eventType: EventType) => void;
   onSetDnf: (dnf: boolean) => void;
+  onExcludeFromAwards: () => void;
+  onIncludeInAwards: () => void;
   onClear: () => void;
 }
 
-export function BulkActionBar({ selectedCount, onConfirm, onSetType, onSetDnf, onClear }: BulkActionBarProps) {
+export function BulkActionBar({ selectedCount, onConfirm, onSetType, onSetDnf, onExcludeFromAwards, onIncludeInAwards, onClear }: BulkActionBarProps) {
   const [bulkEventType, setBulkEventType] = useState<EventType>("BRM200");
 
   if (selectedCount === 0) return null;
@@ -75,6 +77,18 @@ export function BulkActionBar({ selectedCount, onConfirm, onSetType, onSetDnf, o
           className="rounded-md bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-700"
         >
           Clear DNF
+        </button>
+        <button
+          onClick={onExcludeFromAwards}
+          className="rounded-md bg-gray-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700"
+        >
+          Exclude from awards
+        </button>
+        <button
+          onClick={onIncludeInAwards}
+          className="rounded-md bg-teal-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-800"
+        >
+          Include in awards
         </button>
         <button
           onClick={onClear}

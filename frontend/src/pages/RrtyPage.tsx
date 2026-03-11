@@ -2,6 +2,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { Link } from "react-router-dom";
 import { db, type Activity } from "../db/database";
 import { checkRrty, type QualifyingActivity } from "../qualification/tracker";
+import { UnconfirmedRidesNotice } from "../components/UnconfirmedRidesNotice";
 
 function toQualifyingActivity(a: Activity): QualifyingActivity {
   return {
@@ -13,11 +14,19 @@ function toQualifyingActivity(a: Activity): QualifyingActivity {
     eventType: a.eventType,
     dnf: a.dnf,
     sourceUrl: a.sourceUrl,
+    classificationSource: a.classificationSource,
+    manualOverride: a.manualOverride,
+    excludeFromAwards: a.excludeFromAwards,
+    needsConfirmation: a.needsConfirmation,
   };
 }
 
 export default function RrtyPage() {
   const activities = useLiveQuery(() => db.activities.toArray(), []);
+
+  const unconfirmedCount = (activities ?? []).filter(
+    (a) => a.needsConfirmation && !a.manualOverride && !a.excludeFromAwards && a.eventType !== null
+  ).length;
 
   const qualifying = (activities ?? [])
     .filter((a) => a.eventType !== null)
@@ -27,6 +36,7 @@ export default function RrtyPage() {
 
   return (
     <div className="space-y-6">
+      <UnconfirmedRidesNotice count={unconfirmedCount} />
       <div className="flex items-center gap-3">
         <Link to="/dashboard" className="text-sm text-gray-500 hover:text-gray-700">
           &larr; Dashboard

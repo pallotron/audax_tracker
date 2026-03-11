@@ -7,6 +7,7 @@ import {
   checkFourNations,
   checkIsr,
   getInternationalRides,
+  activitySeason,
   type AwardsActivity,
 } from "../../awards/awards";
 
@@ -26,6 +27,10 @@ function makeActivity(overrides: Partial<AwardsActivity> = {}): AwardsActivity {
     endCountry: "Ireland",
     endRegion: "Leinster",
     isNotableInternational: false,
+    classificationSource: "auto-name",
+    manualOverride: false,
+    excludeFromAwards: false,
+    needsConfirmation: false,
     ...overrides,
   };
 }
@@ -334,5 +339,18 @@ describe("getInternationalRides", () => {
     const newer = makeActivity({ date: "2025-01-01", startCountry: "Belgium" });
     const result = getInternationalRides([older, newer]);
     expect(result[0].stravaId).toBe(newer.stravaId);
+  });
+});
+
+describe("checkBrevetKm — award eligibility", () => {
+  it("excludes unconfirmed activities from season km", () => {
+    const activities = [
+      makeActivity({ eventType: "BRM200", distance: 200, date: "2025-06-01", classificationSource: "auto-distance" }),
+      makeActivity({ eventType: "BRM200", distance: 200, date: "2025-06-15" }),
+    ];
+    const result = checkBrevetKm(activities);
+    const season = activitySeason("2025-06-01");
+    // Only the confirmed activity should count
+    expect(result.get(season)).toBe(200);
   });
 });

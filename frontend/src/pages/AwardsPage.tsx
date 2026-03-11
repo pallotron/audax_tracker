@@ -1,6 +1,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { Link } from "react-router-dom";
 import { db, type Activity } from "../db/database";
+import { UnconfirmedRidesNotice } from "../components/UnconfirmedRidesNotice";
 import {
   checkRrtyYears,
   checkBrevetKm,
@@ -24,6 +25,10 @@ function toQualifying(a: Activity): QualifyingActivity {
     eventType: a.eventType,
     dnf: a.dnf,
     sourceUrl: a.sourceUrl,
+    classificationSource: a.classificationSource,
+    manualOverride: a.manualOverride,
+    excludeFromAwards: a.excludeFromAwards,
+    needsConfirmation: a.needsConfirmation,
   };
 }
 
@@ -42,6 +47,10 @@ function toAwards(a: Activity): AwardsActivity {
     endCountry: a.endCountry ?? null,
     endRegion: a.endRegion ?? null,
     isNotableInternational: a.isNotableInternational ?? false,
+    classificationSource: a.classificationSource,
+    manualOverride: a.manualOverride,
+    excludeFromAwards: a.excludeFromAwards,
+    needsConfirmation: a.needsConfirmation,
   };
 }
 
@@ -86,6 +95,10 @@ export default function AwardsPage() {
     return <div className="text-gray-500">Loading…</div>;
   }
 
+  const unconfirmedCount = activities.filter(
+    (a) => a.needsConfirmation && !a.manualOverride && !a.excludeFromAwards && a.eventType !== null
+  ).length;
+
   const qualifying = activities.map(toQualifying);
   const awards = activities.map(toAwards);
 
@@ -104,6 +117,7 @@ export default function AwardsPage() {
 
   return (
     <div className="space-y-8">
+      <UnconfirmedRidesNotice count={unconfirmedCount} />
       <h1 className="text-2xl font-bold text-gray-900">Awards</h1>
 
       {/* ── ACP Awards ─────────────────────────────────────────────── */}

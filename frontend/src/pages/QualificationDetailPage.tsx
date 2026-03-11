@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type Activity } from "../db/database";
+import { UnconfirmedRidesNotice } from "../components/UnconfirmedRidesNotice";
 import {
   checkAcp5000,
   checkAcp10000,
@@ -24,6 +25,10 @@ function toQualifyingActivities(activities: Activity[]): QualifyingActivity[] {
       eventType: a.eventType!,
       dnf: a.dnf,
       sourceUrl: a.sourceUrl,
+      classificationSource: a.classificationSource,
+      manualOverride: a.manualOverride,
+      excludeFromAwards: a.excludeFromAwards,
+      needsConfirmation: a.needsConfirmation,
     }));
 }
 
@@ -102,6 +107,10 @@ export default function QualificationDetailPage() {
     );
   }
 
+  const unconfirmedCount = activities.filter(
+    (a) => a.needsConfirmation && !a.manualOverride && !a.excludeFromAwards && a.eventType !== null
+  ).length;
+
   const qualActivities = toQualifyingActivities(activities);
 
   const is5000 = type === "5000";
@@ -178,6 +187,7 @@ export default function QualificationDetailPage() {
 
   return (
     <div className="space-y-6">
+      <UnconfirmedRidesNotice count={unconfirmedCount} />
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">{title}</h1>

@@ -7,3 +7,4 @@ worker/.dev.vars
 !.env.example
 *.local
 .DS_Store
+.superpowers/

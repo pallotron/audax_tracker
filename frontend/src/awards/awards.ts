@@ -1,4 +1,5 @@
-import type { EventType } from "../db/types";
+import type { EventType, ClassificationSource } from "../db/types";
+import { isAwardEligible } from "../classification/classifier";
 
 export interface AwardsActivity {
   stravaId: string;
@@ -14,6 +15,11 @@ export interface AwardsActivity {
   endCountry: string | null;
   endRegion: string | null;
   isNotableInternational: boolean;
+  // Award eligibility fields
+  classificationSource: ClassificationSource;
+  manualOverride: boolean;
+  excludeFromAwards: boolean;
+  needsConfirmation: boolean;
 }
 
 function addMonths(yearMonth: string, n: number): string {
@@ -26,7 +32,7 @@ function addMonths(yearMonth: string, n: number): string {
 
 export function checkRrtyYears(activities: AwardsActivity[]): Set<number> {
   const qualifying = activities.filter(
-    (a) => !a.dnf && a.eventType !== null && a.distance >= 200
+    (a) => isAwardEligible(a) && a.eventType !== null && a.distance >= 200
   );
   if (qualifying.length === 0) return new Set();
 
@@ -74,7 +80,7 @@ export function activitySeason(dateStr: string): string {
 export function checkBrevetKm(activities: AwardsActivity[]): Map<string, number> {
   const result = new Map<string, number>();
   for (const a of activities) {
-    if (a.dnf || !BREVET_TYPES.includes(a.eventType as EventType)) continue;
+    if (!isAwardEligible(a) || !BREVET_TYPES.includes(a.eventType as EventType)) continue;
     const season = activitySeason(a.date);
     result.set(season, (result.get(season) ?? 0) + a.distance);
   }
@@ -97,7 +103,7 @@ export function checkFourProvinces(
 
   const qualifying = activities.filter(
     (a) =>
-      !a.dnf &&
+      isAwardEligible(a) &&
       a.eventType !== null &&
       a.distance >= 200 &&
       a.startRegion !== null &&
@@ -148,7 +154,7 @@ export function checkEasterFleche(
   activities: AwardsActivity[]
 ): EasterFlecheResult[] {
   return activities
-    .filter((a) => a.eventType === "Fleche" && !a.dnf)
+    .filter((a) => a.eventType === "Fleche" && isAwardEligible(a))
     .flatMap((a) => {
       const d = new Date(a.date);
       const year = d.getFullYear();
@@ -216,7 +222,7 @@ function findSrAssignment(
 export function checkFourNations(activities: AwardsActivity[]): SrNationsResult {
   const eligible = activities.filter(
     (a) =>
-      !a.dnf &&
+      isAwardEligible(a) &&
       SR_DISTANCES.includes(a.eventType as EventType) &&
       a.startCountry !== null &&
       a.endCountry !== null &&
@@ -258,7 +264,7 @@ export function checkFourNations(activities: AwardsActivity[]): SrNationsResult 
 export function checkIsr(activities: AwardsActivity[]): SrNationsResult {
   const eligible = activities.filter(
     (a) =>
-      !a.dnf &&
+      isAwardEligible(a) &&
       SR_DISTANCES.includes(a.eventType as EventType) &&
       a.startCountry !== null &&
       a.endCountry !== null
@@ -289,7 +295,7 @@ export function getInternationalRides(
   return activities
     .filter(
       (a) =>
-        !a.dnf &&
+        isAwardEligible(a) &&
         a.eventType !== null &&
         (a.isNotableInternational ||
           (a.startCountry !== null && a.startCountry !== "Ireland"))

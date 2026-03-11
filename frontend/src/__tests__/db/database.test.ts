@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { db, type Activity, bulkConfirm, bulkSetType } from "../../db/database";
+import { db, type Activity, bulkConfirm, bulkSetType, bulkExcludeFromAwards, bulkIncludeInAwards } from "../../db/database";
 
 beforeEach(async () => {
   await db.activities.clear();
@@ -31,6 +31,7 @@ describe("Activity database", () => {
     endCountry: null,
     endRegion: null,
     isNotableInternational: false,
+    excludeFromAwards: false,
   };
 
   it("should add and retrieve an activity", async () => {
@@ -88,6 +89,19 @@ describe("Activity database", () => {
     expect(updated!.manualOverride).toBe(true);
     expect(updated!.homologationNumber).toBe("ACP-2025-12345");
   });
+
+  it("should store and retrieve excludeFromAwards field", async () => {
+    await db.activities.add(sampleActivity);
+    const result = await db.activities.get("12345");
+    expect(result).toBeDefined();
+    expect(result!.excludeFromAwards).toBe(false);
+  });
+
+  it("should store excludeFromAwards: true when explicitly set", async () => {
+    await db.activities.add({ ...sampleActivity, excludeFromAwards: true });
+    const result = await db.activities.get("12345");
+    expect(result!.excludeFromAwards).toBe(true);
+  });
 });
 
 describe("Bulk operations", () => {
@@ -116,6 +130,7 @@ describe("Bulk operations", () => {
     endCountry: null,
     endRegion: null,
     isNotableInternational: false,
+    excludeFromAwards: false,
     ...overrides,
   });
 
@@ -178,3 +193,65 @@ describe("Bulk operations", () => {
     expect(a1!.classificationSource).toBe("manual");
   });
 });
+
+describe("bulkExcludeFromAwards / bulkIncludeInAwards", () => {
+  const makeActivity = (id: string, overrides: Partial<Activity> = {}): Activity => ({
+    stravaId: id,
+    name: `Activity ${id}`,
+    date: new Date("2025-06-15"),
+    distance: 200,
+    elevationGain: 1000,
+    movingTime: 28800,
+    elapsedTime: 32400,
+    type: "Ride",
+    eventType: "BRM200",
+    classificationSource: "auto-distance",
+    needsConfirmation: true,
+    manualOverride: false,
+    homologationNumber: null,
+    dnf: false,
+    sourceUrl: `https://www.strava.com/activities/${id}`,
+    startLat: null,
+    startLng: null,
+    endLat: null,
+    endLng: null,
+    startCountry: null,
+    startRegion: null,
+    endCountry: null,
+    endRegion: null,
+    isNotableInternational: false,
+    excludeFromAwards: false,
+    ...overrides,
+  });
+
+  beforeEach(async () => {
+    await db.activities.clear();
+  });
+
+  it("sets excludeFromAwards to true for all given ids", async () => {
+    await db.activities.add(makeActivity("ex-1", { excludeFromAwards: false }));
+    await db.activities.add(makeActivity("ex-2", { excludeFromAwards: false }));
+
+    await bulkExcludeFromAwards(["ex-1", "ex-2"]);
+
+    const a1 = await db.activities.get("ex-1");
+    const a2 = await db.activities.get("ex-2");
+    expect(a1!.excludeFromAwards).toBe(true);
+    expect(a2!.excludeFromAwards).toBe(true);
+  });
+
+  it("clears excludeFromAwards for all given ids", async () => {
+    await db.activities.add(makeActivity("inc-1", { excludeFromAwards: true }));
+
+    await bulkIncludeInAwards(["inc-1"]);
+
+    const a1 = await db.activities.get("inc-1");
+    expect(a1!.excludeFromAwards).toBe(false);
+  });
+
+  it("is a no-op for empty array", async () => {
+    await expect(bulkExcludeFromAwards([])).resolves.not.toThrow();
+    await expect(bulkIncludeInAwards([])).resolves.not.toThrow();
+  });
+});
+
