@@ -13,30 +13,17 @@ const TOKENS_KEY = "audax_strava_tokens";
 
 export function getStravaAuthUrl(
   clientId: string,
-  redirectUri: string
+  callbackUrl: string
 ): string {
+  const state = btoa(window.location.origin);
   const params = new URLSearchParams({
     client_id: clientId,
-    redirect_uri: redirectUri,
+    redirect_uri: callbackUrl,
     response_type: "code",
     scope: "read,activity:read_all",
+    state,
   });
   return `https://www.strava.com/oauth/authorize?${params.toString()}`;
-}
-
-export async function exchangeCode(
-  workerUrl: string,
-  code: string
-): Promise<StravaTokens> {
-  const response = await fetch(`${workerUrl}/oauth/token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code }),
-  });
-  if (!response.ok) {
-    throw new Error(`Token exchange failed: ${response.status}`);
-  }
-  return response.json();
 }
 
 export async function refreshAccessToken(
