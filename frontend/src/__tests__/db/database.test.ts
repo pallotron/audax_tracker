@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { db, type Activity, bulkConfirm, bulkSetType, bulkExcludeFromAwards, bulkIncludeInAwards, exportExclusions, importExclusions } from "../../db/database";
+import { db, type Activity, bulkConfirm, bulkSetType, bulkExcludeFromAwards, bulkIncludeInAwards, exportBackup, importBackup } from "../../db/database";
 
 beforeEach(async () => {
   await db.activities.clear();
@@ -103,107 +103,155 @@ describe("Activity database", () => {
     expect(result!.excludeFromAwards).toBe(true);
   });
 
-  describe("exportExclusions", () => {
-    it("returns all activities with stravaId and excludeFromAwards", async () => {
+  describe("exportBackup", () => {
+    it("returns all activities with backup fields", async () => {
       await db.activities.bulkAdd([
-        { ...sampleActivity, stravaId: "1", excludeFromAwards: false },
-        { ...sampleActivity, stravaId: "2", excludeFromAwards: true },
+        { ...sampleActivity, stravaId: "1", excludeFromAwards: false, eventType: "BRM200", dnf: false },
+        { ...sampleActivity, stravaId: "2", excludeFromAwards: true, eventType: "BRM300", dnf: true },
       ]);
 
-      const result = await exportExclusions();
+      const result = await exportBackup();
 
       expect(result.version).toBe(1);
       expect(result.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-      expect(result.exclusions).toHaveLength(2);
-      expect(result.exclusions).toEqual(
+      expect(result.activities).toHaveLength(2);
+      expect(result.activities).toEqual(
         expect.arrayContaining([
-          { stravaId: "1", excludeFromAwards: false },
-          { stravaId: "2", excludeFromAwards: true },
+          {
+            stravaId: "1",
+            eventType: "BRM200",
+            classificationSource: "auto-name",
+            needsConfirmation: false,
+            manualOverride: false,
+            homologationNumber: null,
+            dnf: false,
+            excludeFromAwards: false,
+          },
+          {
+            stravaId: "2",
+            eventType: "BRM300",
+            classificationSource: "auto-name",
+            needsConfirmation: false,
+            manualOverride: false,
+            homologationNumber: null,
+            dnf: true,
+            excludeFromAwards: true,
+          },
         ])
       );
     });
 
-    it("returns empty exclusions array when no activities exist", async () => {
-      const result = await exportExclusions();
-      expect(result.exclusions).toHaveLength(0);
+    it("returns empty activities array when no activities exist", async () => {
+      const result = await exportBackup();
+      expect(result.activities).toHaveLength(0);
     });
   });
 
-  describe("importExclusions", () => {
+  describe("importBackup", () => {
     beforeEach(async () => {
       await db.activities.bulkAdd([
-        { ...sampleActivity, stravaId: "1", excludeFromAwards: false },
-        { ...sampleActivity, stravaId: "2", excludeFromAwards: false },
+        { ...sampleActivity, stravaId: "1", excludeFromAwards: false, eventType: "BRM200", dnf: false },
+        { ...sampleActivity, stravaId: "2", excludeFromAwards: false, eventType: "BRM300", dnf: false },
       ]);
     });
 
-    it("updates excludeFromAwards for matching activities", async () => {
-      await importExclusions({
+    it("updates fields for matching activities", async () => {
+      await importBackup({
         version: 1,
         exportedAt: "2026-03-11T10:00:00Z",
-        exclusions: [
-          { stravaId: "1", excludeFromAwards: true },
-          { stravaId: "2", excludeFromAwards: false },
+        activities: [
+          {
+            stravaId: "1",
+            eventType: "BRM400",
+            classificationSource: "manual",
+            needsConfirmation: false,
+            manualOverride: true,
+            homologationNumber: "123",
+            dnf: false,
+            excludeFromAwards: true,
+          },
+          {
+            stravaId: "2",
+            eventType: "BRM600",
+            classificationSource: "auto-distance",
+            needsConfirmation: true,
+            manualOverride: false,
+            homologationNumber: null,
+            dnf: true,
+            excludeFromAwards: false,
+          },
         ],
       });
 
       const a1 = await db.activities.get("1");
       const a2 = await db.activities.get("2");
       expect(a1!.excludeFromAwards).toBe(true);
+      expect(a1!.eventType).toBe("BRM400");
+      expect(a1!.classificationSource).toBe("manual");
+      expect(a1!.manualOverride).toBe(true);
+      expect(a1!.homologationNumber).toBe("123");
+      expect(a1!.dnf).toBe(false);
+
       expect(a2!.excludeFromAwards).toBe(false);
+      expect(a2!.eventType).toBe("BRM600");
+      expect(a2!.classificationSource).toBe("auto-distance");
+      expect(a2!.needsConfirmation).toBe(true);
+      expect(a2!.manualOverride).toBe(false);
+      expect(a2!.dnf).toBe(true);
     });
 
     it("silently skips stravaIds not in the local database", async () => {
       await expect(
-        importExclusions({
+        importBackup({
           version: 1,
           exportedAt: "2026-03-11T10:00:00Z",
-          exclusions: [{ stravaId: "unknown-999", excludeFromAwards: true }],
+          activities: [
+            {
+              stravaId: "unknown-999",
+              eventType: "BRM200",
+              classificationSource: "manual",
+              needsConfirmation: false,
+              manualOverride: false,
+              homologationNumber: null,
+              dnf: false,
+              excludeFromAwards: true,
+            },
+          ],
         })
       ).resolves.not.toThrow();
     });
 
     it("throws on wrong version", async () => {
       await expect(
-        importExclusions({ version: 99, exportedAt: "", exclusions: [] })
-      ).rejects.toThrow("Unsupported exclusions file version");
+        importBackup({ version: 99, exportedAt: "", activities: [] })
+      ).rejects.toThrow("Unsupported backup file version");
     });
 
-    it("throws when exclusions is not an array", async () => {
+    it("throws when activities is not an array", async () => {
       await expect(
-        importExclusions({ version: 1, exportedAt: "", exclusions: "bad" })
-      ).rejects.toThrow("Invalid exclusions file format");
+        importBackup({ version: 1, exportedAt: "", activities: "bad" })
+      ).rejects.toThrow("Invalid backup file format");
     });
 
     it("throws when an entry is missing stravaId", async () => {
       await expect(
-        importExclusions({
+        importBackup({
           version: 1,
           exportedAt: "",
-          exclusions: [{ excludeFromAwards: true }],
+          activities: [{ excludeFromAwards: true }],
         })
-      ).rejects.toThrow("Invalid exclusions file format");
-    });
-
-    it("throws when excludeFromAwards is not a boolean", async () => {
-      await expect(
-        importExclusions({
-          version: 1,
-          exportedAt: "",
-          exclusions: [{ stravaId: "1", excludeFromAwards: "yes" }],
-        })
-      ).rejects.toThrow("Invalid exclusions file format");
+      ).rejects.toThrow("Invalid backup file format");
     });
 
     it("throws when data is null", async () => {
-      await expect(importExclusions(null)).rejects.toThrow(
-        "Invalid exclusions file format"
+      await expect(importBackup(null)).rejects.toThrow(
+        "Invalid backup file format"
       );
     });
 
     it("throws when data is a string", async () => {
-      await expect(importExclusions("not-an-object")).rejects.toThrow(
-        "Invalid exclusions file format"
+      await expect(importBackup("not-an-object")).rejects.toThrow(
+        "Invalid backup file format"
       );
     });
   });

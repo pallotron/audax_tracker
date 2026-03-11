@@ -218,55 +218,72 @@ export async function confirmActivity(id: string): Promise<void> {
   await db.activities.update(id, { manualOverride: true, needsConfirmation: false });
 }
 
-// --- Exclusions export/import ---
+// --- Backup export/import ---
 
-export interface ExclusionEntry {
+export interface BackupEntry {
   stravaId: string;
+  eventType: EventType;
+  classificationSource: ClassificationSource;
+  needsConfirmation: boolean;
+  manualOverride: boolean;
+  homologationNumber: string | null;
+  dnf: boolean;
   excludeFromAwards: boolean;
 }
 
-export interface ExclusionsExport {
+export interface BackupExport {
   version: 1;
   exportedAt: string;
-  exclusions: ExclusionEntry[];
+  activities: BackupEntry[];
 }
 
-export async function exportExclusions(): Promise<ExclusionsExport> {
+export async function exportBackup(): Promise<BackupExport> {
   const activities = await db.activities.toArray();
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
-    exclusions: activities.map((a) => ({
+    activities: activities.map((a) => ({
       stravaId: a.stravaId,
+      eventType: a.eventType,
+      classificationSource: a.classificationSource,
+      needsConfirmation: a.needsConfirmation,
+      manualOverride: a.manualOverride,
+      homologationNumber: a.homologationNumber,
+      dnf: a.dnf,
       excludeFromAwards: a.excludeFromAwards,
     })),
   };
 }
 
-export async function importExclusions(data: unknown): Promise<void> {
+export async function importBackup(data: unknown): Promise<void> {
   if (typeof data !== "object" || data === null || Array.isArray(data)) {
-    throw new Error("Invalid exclusions file format");
+    throw new Error("Invalid backup file format");
   }
   const d = data as Record<string, unknown>;
   if (d.version !== 1) {
-    throw new Error("Unsupported exclusions file version");
+    throw new Error("Unsupported backup file version");
   }
-  if (!Array.isArray(d.exclusions)) {
-    throw new Error("Invalid exclusions file format");
+  if (!Array.isArray(d.activities)) {
+    throw new Error("Invalid backup file format");
   }
-  for (const entry of d.exclusions) {
+  for (const entry of d.activities) {
     if (
       typeof entry !== "object" ||
       entry === null ||
-      typeof (entry as Record<string, unknown>).stravaId !== "string" ||
-      typeof (entry as Record<string, unknown>).excludeFromAwards !== "boolean"
+      typeof (entry as Record<string, unknown>).stravaId !== "string"
     ) {
-      throw new Error("Invalid exclusions file format");
+      throw new Error("Invalid backup file format");
     }
   }
   await db.transaction("rw", db.activities, async () => {
-    for (const entry of d.exclusions as ExclusionEntry[]) {
+    for (const entry of d.activities as BackupEntry[]) {
       await db.activities.update(entry.stravaId, {
+        eventType: entry.eventType,
+        classificationSource: entry.classificationSource,
+        needsConfirmation: entry.needsConfirmation,
+        manualOverride: entry.manualOverride,
+        homologationNumber: entry.homologationNumber,
+        dnf: entry.dnf,
         excludeFromAwards: entry.excludeFromAwards,
       });
     }

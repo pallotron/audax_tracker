@@ -13,7 +13,7 @@ import { QualificationCard } from "../components/QualificationCard";
 import { Link } from "react-router-dom";
 import { UnconfirmedRidesNotice } from "../components/UnconfirmedRidesNotice";
 import { shouldShowMigrationNotice, dismissMigrationNotice as _dismiss } from "../utils/migrationNotice";
-import { ExclusionsTransferButton } from "../components/ExclusionsTransferButton";
+import { BackupTransferButton } from "../components/BackupTransferButton";
 
 
 function toQualifyingActivity(a: Activity): QualifyingActivity {
@@ -77,7 +77,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
         <div className="flex items-center gap-2">
-          <ExclusionsTransferButton />
+          <BackupTransferButton />
           <button
             onClick={sync}
             disabled={syncing || checking}

@@ -1,14 +1,14 @@
 import { useRef, useState } from "react";
-import { exportExclusions, importExclusions } from "../db/database";
+import { exportBackup, importBackup } from "../db/database";
 
-export function ExclusionsTransferButton() {
+export function BackupTransferButton() {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleExport() {
-    exportExclusions()
+    exportBackup()
       .then((data) => {
         const blob = new Blob([JSON.stringify(data, null, 2)], {
           type: "application/json",
@@ -16,10 +16,10 @@ export function ExclusionsTransferButton() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = "audax-exclusions.json";
+        a.download = "audax-backup.json";
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 100);
-        setStatus("Exclusions exported.");
+        setStatus("Backup exported.");
         setError(null);
       })
       .catch((err) => {
@@ -34,7 +34,7 @@ export function ExclusionsTransferButton() {
     const input = e.currentTarget;
     if (
       !window.confirm(
-        "This will overwrite exclusion settings for all matching rides. Continue?"
+        "This will overwrite settings for all matching rides. Continue?"
       )
     ) {
       input.value = "";
@@ -44,8 +44,8 @@ export function ExclusionsTransferButton() {
     reader.onload = async (ev) => {
       try {
         const data = JSON.parse(ev.target!.result as string);
-        await importExclusions(data);
-        setStatus("Exclusions imported successfully.");
+        await importBackup(data);
+        setStatus("Backup imported successfully.");
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Import failed.");
@@ -65,9 +65,9 @@ export function ExclusionsTransferButton() {
     <>
       <button
         onClick={() => { setOpen(true); setStatus(null); setError(null); }}
-        title="Export / Import exclusions"
+        title="Export / Import backup"
         className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white p-2 text-gray-600 hover:bg-gray-50"
-        aria-label="Export or import exclusions"
+        aria-label="Export or import backup"
       >
         {/* Upload/download icon */}
         <svg
@@ -94,32 +94,31 @@ export function ExclusionsTransferButton() {
           <div
             role="dialog"
             aria-modal="true"
-            aria-labelledby="exclusions-modal-title"
+            aria-labelledby="backup-modal-title"
             className="w-80 rounded-lg bg-white p-6 shadow-xl space-y-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 id="exclusions-modal-title" className="text-base font-semibold text-gray-900">
-              Exclusions
+            <h2 id="backup-modal-title" className="text-base font-semibold text-gray-900">
+              Data Backup
             </h2>
 
             <div className="space-y-2">
               <p className="text-sm text-gray-600">
-                Export your exclusion settings to a file, then import on another
-                device.
+                Export your activity metadata (type, homologation, DNFs, exclusions) to a file, then import on another device.
               </p>
 
               <button
                 onClick={handleExport}
                 className="w-full rounded-md bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
               >
-                Export exclusions
+                Export backup
               </button>
 
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
-                Import exclusions…
+                Import backup…
               </button>
               <input
                 ref={fileInputRef}
