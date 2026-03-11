@@ -13,6 +13,7 @@ import { QualificationCard } from "../components/QualificationCard";
 import { Link } from "react-router-dom";
 import { UnconfirmedRidesNotice } from "../components/UnconfirmedRidesNotice";
 import { shouldShowMigrationNotice, dismissMigrationNotice as _dismiss } from "../utils/migrationNotice";
+import { ExclusionsTransferButton } from "../components/ExclusionsTransferButton";
 
 
 function toQualifyingActivity(a: Activity): QualifyingActivity {
@@ -75,11 +76,13 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <button
-          onClick={sync}
-          disabled={syncing || checking}
-          className="relative inline-flex items-center gap-2 rounded-md bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+        <div className="flex items-center gap-2">
+          <ExclusionsTransferButton />
+          <button
+            onClick={sync}
+            disabled={syncing || checking}
+            className="relative inline-flex items-center gap-2 rounded-md bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
           {hasPending && !syncing && (
             <span className="absolute -top-1 -right-1 flex h-3 w-3">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-300 opacity-75" />
@@ -87,21 +90,22 @@ export default function DashboardPage() {
             </span>
           )}
           {syncing ? (
-            <>
-              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              {progress ? `Fetched ${progress.fetched} activities…` : "Connecting..."}
-            </>
-          ) : checking ? (
-            "Checking Strava…"
-          ) : hasPending ? (
-            "New activities — Sync now"
-          ) : (
-            "Sync with Strava"
-          )}
-        </button>
+              <>
+                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                {progress ? `Fetched ${progress.fetched} activities…` : "Connecting..."}
+              </>
+            ) : checking ? (
+              "Checking Strava…"
+            ) : hasPending ? (
+              "New activities — Sync now"
+            ) : (
+              "Sync with Strava"
+            )}
+          </button>
+        </div>
       </div>
 
       <UnconfirmedRidesNotice count={unconfirmedCount} />

@@ -31,12 +31,13 @@ export function ExclusionsTransferButton() {
   function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    const input = e.currentTarget;
     if (
       !window.confirm(
         "This will overwrite exclusion settings for all matching rides. Continue?"
       )
     ) {
-      e.target.value = "";
+      input.value = "";
       return;
     }
     const reader = new FileReader();
@@ -50,7 +51,7 @@ export function ExclusionsTransferButton() {
         setError(err instanceof Error ? err.message : "Import failed.");
         setStatus(null);
       } finally {
-        e.target.value = "";
+        input.value = "";
       }
     };
     reader.onerror = () => {
@@ -91,10 +92,13 @@ export function ExclusionsTransferButton() {
           onClick={() => setOpen(false)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="exclusions-modal-title"
             className="w-80 rounded-lg bg-white p-6 shadow-xl space-y-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-base font-semibold text-gray-900">
+            <h2 id="exclusions-modal-title" className="text-base font-semibold text-gray-900">
               Exclusions
             </h2>
 

@@ -27,7 +27,13 @@ export default function OAuthCallbackPage() {
     }
 
     try {
-      const tokens = JSON.parse(atob(tokensParam)) as StravaTokens;
+      const binString = atob(tokensParam);
+      const bytes = new Uint8Array(binString.length);
+      for (let i = 0; i < binString.length; i++) {
+        bytes[i] = binString.charCodeAt(i);
+      }
+      const decodedString = new TextDecoder().decode(bytes);
+      const tokens = JSON.parse(decodedString) as StravaTokens;
       // Clear the fragment from the URL before navigating
       window.history.replaceState(null, "", window.location.pathname);
       login(tokens);
