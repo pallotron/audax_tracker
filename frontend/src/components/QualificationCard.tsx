@@ -80,12 +80,14 @@ export function QualificationCard({
             <div>
               <span
                 className={
-                  req.met ? "text-gray-900" : "text-gray-500"
+                  req.met ? "text-gray-900" : "text-red-600 font-medium"
                 }
               >
                 {req.label}
               </span>
-              <p className="text-gray-400 text-xs">{req.details}</p>
+              <p className={req.met ? "text-gray-400 text-xs" : "text-red-500 text-xs"}>
+                {req.details}
+              </p>
             </div>
           </li>
         ))}

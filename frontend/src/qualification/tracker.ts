@@ -540,12 +540,22 @@ export function checkAcp10000(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 
-  const seriesCount = countBrmSeries(windowActivities);
+  const mountain600Activity = sortedByDate.find(
+    (a) =>
+      a.eventType === "BRM600" &&
+      a.elevationGain >= MOUNTAIN_600_ELEVATION
+  );
+
+  const activitiesForSeries = mountain600Activity
+    ? sortedByDate.filter((a) => a.stravaId !== mountain600Activity.stravaId)
+    : sortedByDate;
+
+  const seriesCount = countBrmSeries(activitiesForSeries);
   // Find date when second series was completed
   let twoSeriesDate: Date | null = null;
   if (seriesCount >= 2) {
     const counts: Record<string, number> = {};
-    for (const a of sortedByDate) {
+    for (const a of activitiesForSeries) {
       if (a.eventType && BRM_DISTANCES.includes(a.eventType)) {
         counts[a.eventType] = (counts[a.eventType] ?? 0) + 1;
         if (BRM_DISTANCES.every((d) => (counts[d] ?? 0) >= 2)) {
@@ -558,13 +568,21 @@ export function checkAcp10000(
   // Collect up to 2 activities per BRM distance for the 2x series
   const twoBrmActivities: QualifyingActivity[] = [];
   const distCounts = new Map<string, number>();
-  for (const a of sortedByDate) {
+  for (const a of activitiesForSeries) {
     if (a.eventType && BRM_DISTANCES.includes(a.eventType)) {
       const count = distCounts.get(a.eventType) ?? 0;
       if (count < 2) {
         twoBrmActivities.push(a);
         distCounts.set(a.eventType, count + 1);
       }
+    }
+  }
+
+  const missingDistances: string[] = [];
+  for (const d of BRM_DISTANCES) {
+    const count = distCounts.get(d) ?? 0;
+    if (count < 2) {
+      missingDistances.push(`${2 - count}x ${d}`);
     }
   }
 
@@ -576,7 +594,7 @@ export function checkAcp10000(
     details:
       seriesCount >= 2
         ? `${seriesCount} complete BRM series`
-        : `${seriesCount} of 2 required BRM series`,
+        : `Missing: ${missingDistances.join(", ")}`,
   };
 
   const pbpActivity = sortedByDate.find((a) => a.eventType === "PBP");
@@ -597,11 +615,6 @@ export function checkAcp10000(
       : "Separate RM1200+ required (distinct from PBP)",
   };
 
-  const mountain600Activity = sortedByDate.find(
-    (a) =>
-      a.eventType === "BRM600" &&
-      a.elevationGain >= MOUNTAIN_600_ELEVATION
-  );
   const mountain600: Requirement = {
     met: !!mountain600Activity,
     completedDate: mountain600Activity ? new Date(mountain600Activity.date) : null,

@@ -167,7 +167,7 @@ export default function DashboardPage() {
           <p className="text-2xl font-bold text-gray-900">
             {thisYearActivities.length}
           </p>
-          <p className="text-sm text-orange-600">{audaxThisYear.length} audax</p>
+          <p className="text-sm text-orange-600">{audaxThisYear.length} {audaxThisYear.length === 1 ? "audax" : "audaxes"}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-500">Km this year</p>
@@ -175,7 +175,7 @@ export default function DashboardPage() {
             {Math.round(totalKmThisYear).toLocaleString()}
           </p>
           <p className="text-sm text-orange-600">
-            {Math.round(audaxThisYear.reduce((s, a) => s + a.distance, 0)).toLocaleString()} audax
+            {Math.round(audaxThisYear.reduce((s, a) => s + a.distance, 0)).toLocaleString()} km {audaxThisYear.length === 1 ? "audax" : "audaxes"}
           </p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
@@ -184,7 +184,7 @@ export default function DashboardPage() {
             {Math.round(thisYearActivities.reduce((s, a) => s + a.elevationGain, 0)).toLocaleString()} m
           </p>
           <p className="text-sm text-orange-600">
-            {Math.round(audaxThisYear.reduce((s, a) => s + a.elevationGain, 0)).toLocaleString()} m audax
+            {Math.round(audaxThisYear.reduce((s, a) => s + a.elevationGain, 0)).toLocaleString()} m {audaxThisYear.length === 1 ? "audax" : "audaxes"}
           </p>
         </div>
       </div>

@@ -40,6 +40,69 @@ interface RequirementCardProps {
 }
 
 function RequirementCard({ label, requirement }: RequirementCardProps) {
+  const isBrmSeries = label === "Full BRM Series" || label === "2x BRM Series";
+
+  let renderedActivities = null;
+  if (requirement.matchingActivities.length > 0) {
+    if (isBrmSeries) {
+      const byType = new Map<string, typeof requirement.matchingActivities>();
+      for (const a of requirement.matchingActivities) {
+        const type = a.eventType as string;
+        if (!byType.has(type)) byType.set(type, []);
+        byType.get(type)!.push(a);
+      }
+      
+      const eventOrder = ["BRM200", "BRM300", "BRM400", "BRM600", "BRM1000"];
+
+      renderedActivities = (
+        <div className="mt-2 space-y-2">
+          {eventOrder.map(type => {
+            const acts = byType.get(type) || [];
+            if (acts.length === 0) return null;
+
+            // Sort by date within the distance group
+            acts.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+            return (
+              <div key={type} className="space-y-0.5">
+                <p className="text-xs font-semibold text-gray-600">{type}</p>
+                {acts.map((a) => (
+                  <p key={a.stravaId} className="text-xs text-gray-400 pl-2 border-l-2 border-gray-200">
+                    <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 hover:underline">
+                      {a.name}
+                    </a>
+                    {" "}
+                    <span>({new Date(a.date).toLocaleDateString()})</span>
+                    {" · "}
+                    <span>{Math.round(a.distance)} km</span>
+                  </p>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      );
+    } else {
+      renderedActivities = (
+        <div className="mt-2 space-y-0.5">
+          {requirement.matchingActivities.map((a) => (
+            <p key={a.stravaId} className="text-xs text-gray-400">
+              <span className="font-medium text-gray-500">{a.eventType}</span>
+              {" — "}
+              <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 hover:underline">
+                {a.name}
+              </a>
+              {" "}
+              <span>({new Date(a.date).toLocaleDateString()})</span>
+              {" · "}
+              <span>{Math.round(a.distance)} km</span>
+            </p>
+          ))}
+        </div>
+      );
+    }
+  }
+
   return (
     <div className="flex items-start gap-3 rounded-lg border border-gray-200 p-4">
       {requirement.met ? (
@@ -69,29 +132,15 @@ function RequirementCard({ label, requirement }: RequirementCardProps) {
       )}
       <div className="min-w-0">
         <p className="font-medium text-gray-900">{label}</p>
-        <p className="text-sm text-gray-500">{requirement.details}</p>
+        <p className={`text-sm ${requirement.met ? "text-gray-500" : "text-red-600 font-medium"}`}>
+          {requirement.details}
+        </p>
         {requirement.completedDate && (
           <p className="text-xs text-gray-400">
             Completed: {requirement.completedDate.toLocaleDateString()}
           </p>
         )}
-        {requirement.matchingActivities.length > 0 && (
-          <div className="mt-2 space-y-0.5">
-            {requirement.matchingActivities.map((a) => (
-              <p key={a.stravaId} className="text-xs text-gray-400">
-                <span className="font-medium text-gray-500">{a.eventType}</span>
-                {" — "}
-                <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 hover:underline">
-                  {a.name}
-                </a>
-                {" "}
-                <span>({new Date(a.date).toLocaleDateString()})</span>
-                {" · "}
-                <span>{Math.round(a.distance)} km</span>
-              </p>
-            ))}
-          </div>
-        )}
+        {renderedActivities}
       </div>
     </div>
   );
@@ -119,6 +168,9 @@ export default function QualificationDetailPage() {
   const targetKm = is5000 ? 5000 : 10000;
   const windowYears = is5000 ? 4 : 6;
   const title = is5000 ? "ACP Randonneur 5000" : "ACP Randonneur 10,000";
+  const rulesUrl = is5000 
+    ? "https://www.audax-club-parisien.com/en/our-awards/randonneur-5000/"
+    : "https://www.audax-club-parisien.com/en/our-awards/randonneur-10000/";
 
   const status = is5000
     ? checkAcp5000(qualActivities)
@@ -195,19 +247,32 @@ export default function QualificationDetailPage() {
     <div className="space-y-6">
       <UnconfirmedRidesNotice count={unconfirmedCount} />
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          {windowYears}-year qualifying window
-          {windowDates && (
-            <>
-              {" "}
-              &mdash; best window:{" "}
-              {windowDates.start.toLocaleDateString()} to{" "}
-              {windowDates.end.toLocaleDateString()}
-            </>
-          )}
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            {windowYears}-year qualifying window
+            {windowDates && (
+              <>
+                {" "}
+                &mdash; best window:{" "}
+                {windowDates.start.toLocaleDateString()} to{" "}
+                {windowDates.end.toLocaleDateString()}
+              </>
+            )}
+          </p>
+        </div>
+        <a
+          href={rulesUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-sm font-medium text-orange-600 hover:text-orange-700 hover:underline"
+        >
+          Official ACP Rules
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+          </svg>
+        </a>
       </div>
 
       {/* Status banner */}
