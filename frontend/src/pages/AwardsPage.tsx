@@ -267,7 +267,9 @@ export default function AwardsPage() {
               .filter(([, d]) => d.met)
               .sort(([a], [b]) => a.localeCompare(b))
               .map(([season, data]) => {
-                const activities = Object.values(data.provinces).flat();
+                const activities = Object.values(data.provinces)
+                  .filter((v): v is AwardsActivity[] => !!v)
+                  .flat();
                 return <TrophyBadge key={season} label={season} activities={activities} />;
               })
           )}
