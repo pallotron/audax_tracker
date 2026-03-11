@@ -6,10 +6,12 @@ import {
   checkAcp5000,
   checkAcp10000,
   findBestWindow,
+  ACP_QUALIFYING_TYPES,
   type QualifyingActivity,
   type Requirement,
   type ExpiringEvent,
 } from "../qualification/tracker";
+import { isAwardEligible } from "../classification/classifier";
 import { ProgressBar } from "../components/ProgressBar";
 import { EventTypeBadge, ClassificationLegend } from "../components/EventTypeBadge";
 
@@ -122,7 +124,11 @@ export default function QualificationDetailPage() {
     ? checkAcp5000(qualActivities)
     : checkAcp10000(qualActivities);
 
-  const windowActivities = findBestWindow(qualActivities, windowYears);
+  const eligibleActivities = qualActivities.filter(
+    (a) => isAwardEligible(a) && a.eventType && (ACP_QUALIFYING_TYPES as readonly string[]).includes(a.eventType)
+  );
+
+  const windowActivities = findBestWindow(eligibleActivities, windowYears);
 
   // Derive window dates from the activities in the best window
   const windowDates =

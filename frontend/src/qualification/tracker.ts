@@ -78,7 +78,7 @@ const BRM_DISTANCES: NonNullable<EventType>[] = [
 ];
 
 // Only these event types count toward ACP R5000/R10000 distance and window
-const ACP_QUALIFYING_TYPES: NonNullable<EventType>[] = [
+export const ACP_QUALIFYING_TYPES: NonNullable<EventType>[] = [
   "BRM200", "BRM300", "BRM400", "BRM600", "BRM1000",
   "PBP", "RM1200+", "Fleche",
 ];
