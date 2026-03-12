@@ -233,16 +233,22 @@ export interface BackupEntry {
 }
 
 export interface BackupExport {
-  version: 1;
+  version: 2;
   exportedAt: string;
+  preferences: {
+    cloudSyncEnabled: boolean;
+  };
   activities: BackupEntry[];
 }
 
 export async function exportBackup(): Promise<BackupExport> {
   const activities = await db.activities.toArray();
   return {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
+    preferences: {
+      cloudSyncEnabled: localStorage.getItem("audax_cloud_sync_enabled") === "true",
+    },
     activities: activities.map((a) => ({
       stravaId: a.stravaId,
       eventType: a.eventType,
@@ -262,7 +268,7 @@ export async function importBackup(data: unknown): Promise<void> {
     throw new Error("Invalid backup file format");
   }
   const d = data as Record<string, unknown>;
-  if (d.version !== 1) {
+  if (d.version !== 1 && d.version !== 2) {
     throw new Error("Unsupported backup file version");
   }
   if (!Array.isArray(d.activities)) {
