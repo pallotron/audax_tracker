@@ -6,6 +6,11 @@ routes = [
   { pattern = "api.audax-tracker.angelofailla.com", custom_domain = true }
 ]
 
+[[kv_namespaces]]
+binding = "OVERRIDES_KV"
+id = "364a6c23cd514181b7820e63709c4a0e"
+preview_id = "21c04d72b26240e78ccb858c85466f16"
+
 [vars]
 STRAVA_CLIENT_ID = "74768"
 
