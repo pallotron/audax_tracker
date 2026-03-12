@@ -142,6 +142,19 @@ export function checkSuperRandonneur(
   return result;
 }
 
+// ── Ireland normalisation ─────────────────────────────────────────────────────
+// Northern Ireland is part of the UK in geocoding data, but for Irish cycling
+// awards it should be treated as Ireland (province: Ulster).
+function normalizeToIreland(
+  country: string | null,
+  region: string | null
+): { country: string | null; region: string | null } {
+  if (country === "United Kingdom" && region === "Northern Ireland") {
+    return { country: "Ireland", region: "Ulster" };
+  }
+  return { country, region };
+}
+
 // ── 4 Provinces ───────────────────────────────────────────────────────────────
 
 const PROVINCES = ["Ulster", "Leinster", "Munster", "Connacht"] as const;
@@ -156,21 +169,16 @@ export function checkFourProvinces(
 ): Map<string, FourProvincesSeason> {
   const result = new Map<string, FourProvincesSeason>();
 
-  const qualifying = activities.filter(
-    (a) =>
-      isAwardEligible(a) &&
-      a.eventType !== null &&
-      a.distance >= 200 &&
-      a.startRegion !== null &&
-      PROVINCES.includes(a.startRegion as (typeof PROVINCES)[number])
-  );
+  for (const a of activities) {
+    if (!isAwardEligible(a) || a.eventType === null || a.distance < 200) continue;
+    const { region } = normalizeToIreland(a.startCountry, a.startRegion);
+    if (region === null || !PROVINCES.includes(region as (typeof PROVINCES)[number])) continue;
 
-  for (const a of qualifying) {
     const season = activitySeason(a.date);
     if (!result.has(season)) result.set(season, { met: false, provinces: {} });
     const seasonData = result.get(season)!;
-    if (!seasonData.provinces[a.startRegion!]) seasonData.provinces[a.startRegion!] = [];
-    seasonData.provinces[a.startRegion!]!.push(a);
+    if (!seasonData.provinces[region]) seasonData.provinces[region] = [];
+    seasonData.provinces[region]!.push(a);
   }
 
   for (const data of result.values()) {
@@ -285,7 +293,9 @@ export function checkFourNations(activities: AwardsActivity[]): SrNationsResult 
   );
 
   const getNation = (a: AwardsActivity): string | null => {
-    if (a.startCountry === "Ireland" && a.endCountry === "Ireland") return "Ireland";
+    const start = normalizeToIreland(a.startCountry, a.startRegion);
+    const end = normalizeToIreland(a.endCountry, a.endRegion);
+    if (start.country === "Ireland" && end.country === "Ireland") return "Ireland";
     if (
       a.startCountry === "United Kingdom" &&
       a.endCountry === "United Kingdom" &&
@@ -353,7 +363,8 @@ export function getInternationalRides(
         isAwardEligible(a) &&
         a.eventType !== null &&
         (a.isNotableInternational ||
-          (a.startCountry !== null && a.startCountry !== "Ireland"))
+          (a.startCountry !== null &&
+            normalizeToIreland(a.startCountry, a.startRegion).country !== "Ireland"))
     )
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }

@@ -44,10 +44,29 @@ describe("parseNominatimRegion", () => {
     expect(result.region).toBe("Munster");
   });
 
-  it("returns state directly for UK activities", () => {
+  it("returns state directly for UK activities (England/Scotland/Wales)", () => {
     const result = parseNominatimRegion({ country: "United Kingdom", state: "Scotland" });
     expect(result.country).toBe("United Kingdom");
     expect(result.region).toBe("Scotland");
+  });
+
+  it("maps Northern Ireland to Ireland with Ulster province via county", () => {
+    const result = parseNominatimRegion({
+      country: "United Kingdom",
+      state: "Northern Ireland",
+      county: "County Antrim",
+    });
+    expect(result.country).toBe("Ireland");
+    expect(result.region).toBe("Ulster");
+  });
+
+  it("maps Northern Ireland to Ireland/Ulster when county is missing", () => {
+    const result = parseNominatimRegion({
+      country: "United Kingdom",
+      state: "Northern Ireland",
+    });
+    expect(result.country).toBe("Ireland");
+    expect(result.region).toBe("Ulster");
   });
 
   it("returns state for non-IE/UK countries", () => {
