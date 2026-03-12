@@ -7,5 +7,6 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: ["fake-indexeddb/auto", "@testing-library/jest-dom"],
+    testTimeout: 15000,
   },
 });
