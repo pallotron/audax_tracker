@@ -27,6 +27,17 @@ const AUDAX_EVENT_TYPES_ROW2: NonNullable<EventType>[] = [
   "Other",
 ];
 
+const SHOW_ONLY_OPTIONS = [
+  { id: "audax", label: "Audax" },
+  { id: "needsConfirm", label: "Needs confirmation" },
+  { id: "dnf", label: "DNF" },
+  { id: "noHomologation", label: "Missing homologation #" },
+  { id: "awardsEligible", label: "Awards eligible" },
+  { id: "noPermanents", label: "Exclude permanents" },
+] as const;
+
+type ShowOnlyId = typeof SHOW_ONLY_OPTIONS[number]["id"];
+
 type SortKey = "date" | "name" | "distance" | "elevationGain" | "movingTime" | "elapsedTime" | "eventType" | "homologationNumber";
 type SortDir = "asc" | "desc";
 
@@ -53,21 +64,79 @@ function getSortValue(a: Activity, key: SortKey): string | number {
 
 export default function ActivitiesPage() {
   const { sync, syncing, progress, error } = useSyncContext();
-  const [searchParams] = useSearchParams();
-  const [yearFilter, setYearFilter] = useState<string>("all");
-  const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
-  const [audaxOnly, setAudaxOnly] = useState(false);
-  const [needsConfirmOnly, setNeedsConfirmOnly] = useState(
-    () => searchParams.get("needsConfirm") === "1"
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // All filter state lives in the URL
+  const textFilter = searchParams.get("q") ?? "";
+  const yearFilter = searchParams.get("year") ?? "all";
+  const selectedTypes = useMemo(
+    () => new Set(searchParams.getAll("type")),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [searchParams.toString()]
   );
-  const [dnfOnly, setDnfOnly] = useState(false);
-  const [needsHomologationOnly, setNeedsHomologationOnly] = useState(false);
-  const [textFilter, setTextFilter] = useState("");
+  const activeFilters = useMemo(
+    () => new Set((searchParams.get("filter") ?? "").split(",").filter(Boolean) as ShowOnlyId[]),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [searchParams.toString()]
+  );
+
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [page, setPage] = useState(0);
   const pageSize = 50;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const resetPage = () => setPage(0);
+
+  const updateParam = useCallback((key: string, value: string | null) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (!value) next.delete(key); else next.set(key, value);
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const handleTextChange = (value: string) => {
+    updateParam("q", value || null);
+    resetPage();
+  };
+
+  const handleYearChange = (value: string) => {
+    updateParam("year", value === "all" ? null : value);
+    resetPage();
+  };
+
+  const toggleType = useCallback((type: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      const types = new Set(prev.getAll("type"));
+      if (types.has(type)) types.delete(type); else types.add(type);
+      next.delete("type");
+      for (const t of types) next.append("type", t);
+      return next;
+    }, { replace: true });
+    resetPage();
+  }, [setSearchParams]);
+
+  const clearTypeFilter = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("type");
+      return next;
+    }, { replace: true });
+    resetPage();
+  }, [setSearchParams]);
+
+  const toggleShowOnly = useCallback((id: ShowOnlyId) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      const filters = new Set((prev.get("filter") ?? "").split(",").filter(Boolean));
+      if (filters.has(id)) filters.delete(id); else filters.add(id);
+      if (filters.size === 0) next.delete("filter"); else next.set("filter", [...filters].join(","));
+      return next;
+    }, { replace: true });
+    resetPage();
+  }, [setSearchParams]);
 
   const activities = useLiveQuery(
     () => db.activities.orderBy("date").reverse().toArray(),
@@ -91,17 +160,18 @@ export default function ActivitiesPage() {
         const d = a.date instanceof Date ? a.date : new Date(a.date);
         if (d.getFullYear() !== Number(yearFilter)) return false;
       }
-      if (audaxOnly && a.eventType === null) return false;
-      if (needsConfirmOnly && !(a.needsConfirmation && !a.manualOverride)) return false;
+      if (activeFilters.has("audax") && a.eventType === null) return false;
+      if (activeFilters.has("needsConfirm") && !(a.needsConfirmation && !a.manualOverride)) return false;
+      if (activeFilters.has("dnf") && !a.dnf) return false;
+      if (activeFilters.has("noHomologation") && !(a.eventType !== null && !a.homologationNumber)) return false;
+      if (activeFilters.has("awardsEligible") && a.excludeFromAwards) return false;
+      if (activeFilters.has("noPermanents") && a.eventType === "Permanent") return false;
       if (selectedTypes.size > 0) {
         const typeKey = a.eventType ?? "__null__";
         if (!selectedTypes.has(typeKey)) return false;
       }
-      if (dnfOnly && !a.dnf) return false;
-      if (needsHomologationOnly && !(a.eventType !== null && !a.homologationNumber)) return false;
       if (textFilter) {
-        const q = textFilter.toLowerCase();
-        if (!a.name.toLowerCase().includes(q)) return false;
+        if (!a.name.toLowerCase().includes(textFilter.toLowerCase())) return false;
       }
       return true;
     });
@@ -112,22 +182,11 @@ export default function ActivitiesPage() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return result;
-  }, [activities, yearFilter, selectedTypes, audaxOnly, needsConfirmOnly, dnfOnly, needsHomologationOnly, textFilter, sortKey, sortDir]);
+  }, [activities, yearFilter, selectedTypes, activeFilters, textFilter, sortKey, sortDir]);
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
 
-  const resetPage = () => setPage(0);
-  const handleYearChange = (v: string) => { setYearFilter(v); resetPage(); };
-  const toggleType = (type: string) => {
-    setSelectedTypes((prev) => {
-      const next = new Set(prev);
-      if (next.has(type)) next.delete(type); else next.add(type);
-      return next;
-    });
-    resetPage();
-  };
-  const clearTypeFilter = () => { setSelectedTypes(new Set()); resetPage(); };
   const handleSort = useCallback((key: SortKey) => {
     setSortKey((prev) => {
       if (prev === key) {
@@ -205,28 +264,11 @@ export default function ActivitiesPage() {
         >
           {syncing ? (
             <>
-              <svg
-                className="animate-spin h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
+              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              {progress
-                ? `Fetched ${progress.fetched}…`
-                : "Connecting..."}
+              {progress ? `Fetched ${progress.fetched}…` : "Connecting..."}
             </>
           ) : (
             "Sync with Strava"
@@ -236,10 +278,7 @@ export default function ActivitiesPage() {
 
       {syncing && progress && (
         <div className="w-full rounded-full bg-gray-200 h-2.5 overflow-hidden">
-          <div
-            className="bg-orange-500 h-2.5 rounded-full animate-pulse"
-            style={{ width: "100%" }}
-          />
+          <div className="bg-orange-500 h-2.5 rounded-full animate-pulse" style={{ width: "100%" }} />
         </div>
       )}
 
@@ -250,17 +289,16 @@ export default function ActivitiesPage() {
       )}
 
       {/* Filters */}
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-4">
-          <div>
-            <input
-              type="text"
-              value={textFilter}
-              onChange={(e) => { setTextFilter(e.target.value); resetPage(); }}
-              placeholder="Filter by name…"
-              className="rounded border border-gray-300 px-2 py-1 text-sm focus:border-orange-500 focus:ring-orange-500"
-            />
-          </div>
+      <div className="space-y-2">
+        {/* Row 1: text search + year + reset */}
+        <div className="flex flex-wrap items-center gap-3">
+          <input
+            type="text"
+            value={textFilter}
+            onChange={(e) => handleTextChange(e.target.value)}
+            placeholder="Filter by name…"
+            className="rounded border border-gray-300 px-2 py-1 text-sm focus:border-orange-500 focus:ring-orange-500"
+          />
           <div>
             <label htmlFor="year-filter" className="mr-2 text-sm font-medium text-gray-700">
               Year:
@@ -277,46 +315,38 @@ export default function ActivitiesPage() {
               ))}
             </select>
           </div>
-          <label className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-700 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={audaxOnly}
-              onChange={(e) => { setAudaxOnly(e.target.checked); resetPage(); }}
-              className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-            />
-            Audax only
-          </label>
-          <label className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-700 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={needsConfirmOnly}
-              onChange={(e) => { setNeedsConfirmOnly(e.target.checked); resetPage(); }}
-              className="rounded border-gray-300 text-yellow-500 focus:ring-yellow-400"
-            />
-            Needs confirmation
-          </label>
-          <label className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-700 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={dnfOnly}
-              onChange={(e) => { setDnfOnly(e.target.checked); resetPage(); }}
-              className="rounded border-gray-300 text-red-500 focus:ring-red-400"
-            />
-            😢 DNF only
-          </label>
-          <label className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-700 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={needsHomologationOnly}
-              onChange={(e) => { setNeedsHomologationOnly(e.target.checked); resetPage(); }}
-              className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-            />
-            Missing homologation #
-          </label>
+          {(textFilter || yearFilter !== "all" || selectedTypes.size > 0 || activeFilters.size > 0) && (
+            <button
+              onClick={() => { setSearchParams({}, { replace: true }); resetPage(); }}
+              className="text-sm text-gray-500 hover:text-gray-700 underline"
+            >
+              Reset filters
+            </button>
+          )}
         </div>
-        <div className="space-y-1.5">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-sm font-medium text-gray-700 mr-1">Type:</span>
+
+        {/* Row 2: show-only chips */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-sm font-medium text-gray-700 mr-1">Filters:</span>
+          {SHOW_ONLY_OPTIONS.map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => toggleShowOnly(id)}
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                activeFilters.has(id)
+                  ? "bg-orange-500 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Type chips */}
+        <div className="flex items-start gap-1.5">
+          <span className="shrink-0 text-sm font-medium text-gray-700 pt-0.5">Filter types:</span>
+          <div className="flex flex-wrap gap-1.5">
             {selectedTypes.size > 0 && (
               <button
                 onClick={clearTypeFilter}
@@ -335,22 +365,7 @@ export default function ActivitiesPage() {
             >
               (unclassified)
             </button>
-            {AUDAX_EVENT_TYPES_ROW1.map((t) => (
-              <button
-                key={t}
-                onClick={() => toggleType(t)}
-                className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
-                  selectedTypes.has(t)
-                    ? "bg-orange-500 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5 pl-[4.5rem]">
-            {AUDAX_EVENT_TYPES_ROW2.map((t) => (
+            {[...AUDAX_EVENT_TYPES_ROW1, ...AUDAX_EVENT_TYPES_ROW2].map((t) => (
               <button
                 key={t}
                 onClick={() => toggleType(t)}
@@ -380,79 +395,79 @@ export default function ActivitiesPage() {
         </p>
       ) : (
         <>
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-4">
-          <ClassificationLegend />
-          <div className="text-xs text-gray-500">
-            Homologation # can be retrieved from{" "}
-            <a
-              href="https://myaccount.audax-club-parisien.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-orange-600 hover:underline font-medium"
-            >
-              Audax Club Parisien
-            </a>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-4">
+            <ClassificationLegend />
+            <div className="text-xs text-gray-500">
+              Homologation # can be retrieved from{" "}
+              <a
+                href="https://myaccount.audax-club-parisien.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-orange-600 hover:underline font-medium"
+              >
+                Audax Club Parisien
+              </a>
+            </div>
           </div>
-        </div>
-        <div className="overflow-x-auto rounded-lg border border-gray-200">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-3 py-2 w-10">
-                  <input
-                    type="checkbox"
-                    checked={allFilteredSelected}
-                    ref={(el) => {
-                      if (el) el.indeterminate = someFilteredSelected && !allFilteredSelected;
-                    }}
-                    onChange={toggleSelectAll}
-                    className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                  />
-                </th>
-                {([
-                  ["date", "Date", "text-left"],
-                  ["name", "Name", "text-left"],
-                  ["distance", "Km", "text-right"],
-                  ["elevationGain", "Elev (m)", "text-right"],
-                  ["movingTime", "Moving", "text-left"],
-                  ["elapsedTime", "Elapsed", "text-left"],
-                  ["eventType", "Type", "text-left"],
-                  ["homologationNumber", "Homologation", "text-left"],
-                ] as [SortKey, string, string][]).map(([key, label, align]) => (
-                  <th
-                    key={key}
-                    onClick={() => handleSort(key)}
-                    className={`px-3 py-2 ${align} text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer select-none hover:text-gray-700`}
-                  >
-                    {label}
-                    {sortKey === key && (
-                      <span className="ml-1">{sortDir === "asc" ? "▲" : "▼"}</span>
-                    )}
+          <div className="overflow-x-auto rounded-lg border border-gray-200">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 w-10">
+                    <input
+                      type="checkbox"
+                      checked={allFilteredSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = someFilteredSelected && !allFilteredSelected;
+                      }}
+                      onChange={toggleSelectAll}
+                      className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                    />
                   </th>
+                  {([
+                    ["date", "Date", "text-left"],
+                    ["name", "Name", "text-left"],
+                    ["distance", "Km", "text-right"],
+                    ["elevationGain", "Elev (m)", "text-right"],
+                    ["movingTime", "Moving", "text-left"],
+                    ["elapsedTime", "Elapsed", "text-left"],
+                    ["eventType", "Type", "text-left"],
+                    ["homologationNumber", "Homologation", "text-left"],
+                  ] as [SortKey, string, string][]).map(([key, label, align]) => (
+                    <th
+                      key={key}
+                      onClick={() => handleSort(key)}
+                      className={`px-3 py-2 ${align} text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer select-none hover:text-gray-700`}
+                    >
+                      {label}
+                      {sortKey === key && (
+                        <span className="ml-1">{sortDir === "asc" ? "▲" : "▼"}</span>
+                      )}
+                    </th>
+                  ))}
+                  <th className="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Awards
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Start
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    {/* edit */}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {paged.map((a) => (
+                  <ActivityRow
+                    key={a.stravaId}
+                    activity={a}
+                    selected={selectedIds.has(a.stravaId)}
+                    onToggle={toggleSelect}
+                  />
                 ))}
-                <th className="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Awards
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Start
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  {/* edit */}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 bg-white">
-              {paged.map((a) => (
-                <ActivityRow
-                  key={a.stravaId}
-                  activity={a}
-                  selected={selectedIds.has(a.stravaId)}
-                  onToggle={toggleSelect}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </tbody>
+            </table>
+          </div>
         </>
       )}
 

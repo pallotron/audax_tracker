@@ -121,7 +121,7 @@ export default function DashboardPage() {
         <div className="flex items-start justify-between rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
           <span>
             Award filtering has been updated. Rides classified by distance now require confirmation to count.{" "}
-            <Link to="/activities?needsConfirm=1" className="font-medium underline hover:text-blue-900">
+            <Link to="/activities?filter=needsConfirm" className="font-medium underline hover:text-blue-900">
               Review unconfirmed rides →
             </Link>
           </span>
