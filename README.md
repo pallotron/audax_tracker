@@ -111,6 +111,27 @@ npm run dev
 
 The full Strava OAuth flow works in local dev — the browser is redirected to the production worker, which exchanges the code and redirects back to `http://localhost:5173/callback` with tokens in the URL fragment. No local worker is needed as long as `http://localhost:5173` is in the worker's `ALLOWED_ORIGINS` secret.
 
+#### Testing Worker changes locally
+
+To test Worker changes (e.g. new endpoints) before deploying, run the Worker locally in remote mode so it connects to the real Cloudflare KV namespace:
+
+```bash
+cd worker
+npx wrangler dev --remote --var ALLOWED_ORIGINS="http://localhost:5173"
+# Worker starts at http://localhost:8787
+```
+
+Then point the frontend at it by editing `frontend/.env.local`:
+
+```env
+VITE_OAUTH_WORKER_URL=http://localhost:8787
+VITE_OAUTH_CALLBACK_URL=http://localhost:8787/oauth/callback
+```
+
+Run the frontend as normal (`npm run dev` in `frontend/`). Remember to revert `.env.local` to the production URLs before merging.
+
+> **Note:** `wrangler dev --remote` uses the **preview** KV namespace (`preview_id` in `wrangler.toml`), so test data won't affect production KV.
+
 ### 4. Deploy to Cloudflare Pages
 
 Deployments are handled automatically via GitHub Actions on push to `main`. The workflow deploys the worker and builds + deploys the frontend.

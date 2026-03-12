@@ -112,7 +112,7 @@ describe("Activity database", () => {
 
       const result = await exportBackup();
 
-      expect(result.version).toBe(1);
+      expect(result.version).toBe(2);
       expect(result.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
       expect(result.activities).toHaveLength(2);
       expect(result.activities).toEqual(
@@ -146,6 +146,13 @@ describe("Activity database", () => {
     it("returns empty activities array when no activities exist", async () => {
       const result = await exportBackup();
       expect(result.activities).toHaveLength(0);
+    });
+
+    it("exportBackup produces version 2 with preferences field", async () => {
+      const backup = await exportBackup();
+      expect(backup.version).toBe(2);
+      expect(backup.preferences).toBeDefined();
+      expect(typeof backup.preferences.cloudSyncEnabled).toBe("boolean");
     });
   });
 

@@ -1,12 +1,19 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import appIcon from "../assets/app-icon.png";
 import { useAuth } from "../context/AuthContext";
 import { getStravaAuthUrl } from "../strava/auth";
 import { config } from "../config";
+import { useSyncContext } from "../context/SyncContext";
+import CloudSyncConsentDialog from "../components/CloudSyncConsentDialog";
+import CloudSyncDisableDialog from "../components/CloudSyncDisableDialog";
 
 export default function AboutPage() {
   const { isAuthenticated } = useAuth();
   const authUrl = getStravaAuthUrl(config.stravaClientId, config.oauthCallbackUrl);
+  const { cloudSync } = useSyncContext();
+  const [showConsentDialog, setShowConsentDialog] = useState(false);
+  const [showDisableDialog, setShowDisableDialog] = useState(false);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
@@ -102,9 +109,67 @@ export default function AboutPage() {
         <section>
           <h2 className="mb-2 text-xl font-semibold text-gray-800">Privacy</h2>
           <p className="text-gray-600">
-            All your activity data is stored locally in your browser using IndexedDB. Nothing is
-            sent to any external server beyond the initial Strava sync. Clearing your browser data
-            will remove all stored activities.
+            By default, all your activity data is stored locally in your browser using IndexedDB.
+            Nothing is sent to any external server beyond the initial Strava sync. Clearing your
+            browser data will remove all stored activities. Optionally, you can enable cloud sync
+            (see below) to back up your annotations across devices.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="mb-2 text-xl font-semibold text-gray-800">Cloud Sync</h2>
+          <p className="mb-3 text-gray-600">
+            Optionally sync your activity annotations (event types, DNF flags, homologation numbers)
+            across devices. Your Strava activity data, GPS tracks, and personal information are never
+            stored in the cloud — only the annotations you create within Audax Tracker.
+          </p>
+          {cloudSync.enabled ? (
+            <button
+              onClick={() => setShowDisableDialog(true)}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              Disable cloud sync
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowConsentDialog(true)}
+              className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600"
+            >
+              Enable cloud sync
+            </button>
+          )}
+          {showConsentDialog && (
+            <CloudSyncConsentDialog
+              onEnable={() => { cloudSync.enable(); setShowConsentDialog(false); }}
+              onDismiss={() => setShowConsentDialog(false)}
+            />
+          )}
+          {showDisableDialog && (
+            <CloudSyncDisableDialog
+              onKeep={() => { void cloudSync.disable(false); setShowDisableDialog(false); }}
+              onDelete={() => { void cloudSync.disable(true); setShowDisableDialog(false); }}
+              onCancel={() => setShowDisableDialog(false)}
+            />
+          )}
+        </section>
+
+        <section>
+          <h2 className="mb-2 text-xl font-semibold text-gray-800">Strava API Policy</h2>
+          <p className="text-gray-600">
+            Audax Tracker complies with the{" "}
+            <a
+              href="https://www.strava.com/legal/api"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-orange-600 hover:underline"
+            >
+              Strava API Agreement
+            </a>
+            . Strava activity data — including names, distances, GPS tracks, and other Strava content —
+            is stored only in your local browser and is never uploaded to any external server. The
+            optional cloud sync feature stores only user-generated annotations: data you have created
+            within Audax Tracker, not data retrieved from Strava. You can permanently delete your
+            cloud data at any time using the Cloud Sync settings above.
           </p>
         </section>
       </div>
