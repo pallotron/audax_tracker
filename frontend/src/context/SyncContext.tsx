@@ -3,6 +3,7 @@ import { useAuth } from "./AuthContext";
 import { fetchAllActivities, hasNewActivities } from "../strava/client";
 import { db } from "../db/database";
 import { geocodeActivities } from "../geo/geocoder";
+import { useCloudSync, type CloudSyncHook } from "../cloud/useCloudSync";
 
 const LAST_SYNC_KEY = "audax_last_sync";
 
@@ -16,6 +17,7 @@ interface SyncContextValue {
   geocoding: { done: number; total: number } | null;
   error: string | null;
   lastSync: string | null;
+  cloudSync: CloudSyncHook;
 }
 
 const SyncContext = createContext<SyncContextValue | null>(null);
@@ -37,6 +39,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     () => localStorage.getItem(LAST_SYNC_KEY)
   );
   const [geocoding, setGeocoding] = useState<{ done: number; total: number } | null>(null);
+  const cloudSync = useCloudSync();
 
   const sync = useCallback(async () => {
     setSyncing(true);
@@ -118,7 +121,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <SyncContext.Provider
-      value={{ sync, checkPending, syncing, checking, hasPending, progress, geocoding, error, lastSync }}
+      value={{ sync, checkPending, syncing, checking, hasPending, progress, geocoding, error, lastSync, cloudSync }}
     >
       {children}
     </SyncContext.Provider>

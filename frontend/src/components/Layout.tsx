@@ -2,11 +2,12 @@ import { Link, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useSyncContext } from "../context/SyncContext";
 import appIcon from "../assets/app-icon.png";
+import CloudSyncIcon from "./CloudSyncIcon";
 
 
 export default function Layout() {
   const { isAuthenticated, tokens, logout } = useAuth();
-  const { geocoding } = useSyncContext();
+  const { geocoding, cloudSync } = useSyncContext();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -37,6 +38,7 @@ export default function Layout() {
                         : "Geocoding…"}
                     </span>
                   )}
+                  <CloudSyncIcon sync={cloudSync} onRetry={cloudSync.retry} />
                   <span className="text-sm text-gray-700">{tokens.athlete?.firstname}</span>
                   <button onClick={logout} className="text-sm text-gray-500 hover:text-gray-700">Logout</button>
                 </div>
