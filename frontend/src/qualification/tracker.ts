@@ -80,8 +80,16 @@ const BRM_DISTANCES: NonNullable<EventType>[] = [
 // Only these event types count toward ACP R5000/R10000 distance and window
 export const ACP_QUALIFYING_TYPES: NonNullable<EventType>[] = [
   "BRM200", "BRM300", "BRM400", "BRM600", "BRM1000",
-  "PBP", "RM1200+", "Fleche",
+  "PBP", "RM1200+", "Fleche", "SR600",
 ];
+
+/**
+ * SR600 counts as BRM600 for series and award purposes.
+ * This normalises the type before any series/distance checks.
+ */
+function normalizeToSeries(et: NonNullable<EventType>): NonNullable<EventType> {
+  return et === "SR600" ? "BRM600" : et;
+}
 
 /**
  * Merges expiring events from multiple qualification checks,
@@ -163,7 +171,9 @@ export function checkBrmSeries(activities: QualifyingActivity[]): {
   met: boolean;
   missing: EventType[];
 } {
-  const present = new Set(activities.map((a) => a.eventType));
+  const present = new Set(
+    activities.map((a) => a.eventType ? normalizeToSeries(a.eventType as NonNullable<EventType>) : a.eventType)
+  );
   const missing = BRM_DISTANCES.filter((d) => !present.has(d));
   return {
     met: missing.length === 0,
@@ -182,8 +192,10 @@ export function countBrmSeries(activities: QualifyingActivity[]): number {
     counts.set(d, 0);
   }
   for (const a of activities) {
-    if (a.eventType && BRM_DISTANCES.includes(a.eventType)) {
-      counts.set(a.eventType, (counts.get(a.eventType) ?? 0) + 1);
+    if (!a.eventType) continue;
+    const et = normalizeToSeries(a.eventType as NonNullable<EventType>);
+    if (BRM_DISTANCES.includes(et)) {
+      counts.set(et, (counts.get(et) ?? 0) + 1);
     }
   }
   return Math.min(...BRM_DISTANCES.map((d) => counts.get(d) ?? 0));
@@ -222,11 +234,12 @@ function findExpiringEvents(
 
   if (expiring.length === 0) return [];
 
-  // Count occurrences of each event type in the window
+  // Count occurrences of each event type in the window (SR600 normalised to BRM600)
   const typeCounts = new Map<string, number>();
   for (const a of windowActivities) {
     if (a.eventType) {
-      typeCounts.set(a.eventType, (typeCounts.get(a.eventType) ?? 0) + 1);
+      const et = normalizeToSeries(a.eventType as NonNullable<EventType>);
+      typeCounts.set(et, (typeCounts.get(et) ?? 0) + 1);
     }
   }
 
@@ -242,22 +255,12 @@ function findExpiringEvents(
     if (["PBP", "Fleche", "RM1200+"].includes(et)) {
       isCritical = (typeCounts.get(et) ?? 0) <= 1;
     }
-    // BRM distances: critical if losing it drops below the required series count
-    else if (BRM_DISTANCES.includes(et as NonNullable<EventType>)) {
-      const count = typeCounts.get(et) ?? 0;
+    // BRM distances (including SR600 normalised to BRM600): critical if losing it
+    // drops below the required series count
+    else if (BRM_DISTANCES.includes(normalizeToSeries(et as NonNullable<EventType>))) {
+      const normalised = normalizeToSeries(et as NonNullable<EventType>);
+      const count = typeCounts.get(normalised) ?? 0;
       if (count <= requiredSeriesCount) {
-        isCritical = true;
-      }
-    }
-    // Mountain 600: critical if it's the only BRM600 with enough elevation
-    else if (et === "BRM600") {
-      const mountain600s = windowActivities.filter(
-        (a) => a.eventType === "BRM600" && a.elevationGain >= 8000
-      );
-      if (
-        activity.elevationGain >= 8000 &&
-        mountain600s.length <= 1
-      ) {
         isCritical = true;
       }
     }
@@ -302,8 +305,10 @@ export function checkAcp5000(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
     for (const a of sortedByDate) {
-      if (a.eventType && BRM_DISTANCES.includes(a.eventType)) {
-        lastPerDistance.set(a.eventType, new Date(a.date));
+      if (!a.eventType) continue;
+      const et = normalizeToSeries(a.eventType as NonNullable<EventType>);
+      if (BRM_DISTANCES.includes(et)) {
+        lastPerDistance.set(et, new Date(a.date));
         // Check if we have all distances now
         if (BRM_DISTANCES.every((d) => lastPerDistance.has(d))) {
           brmSeriesCompletedDate = new Date(a.date);
@@ -312,15 +317,17 @@ export function checkAcp5000(
       }
     }
   }
-  // Collect one activity per BRM distance for the series
+  // Collect one activity per BRM distance for the series (most recent per distance)
   const brmSeriesActivities: QualifyingActivity[] = [];
   const seenDistances = new Set<EventType>();
   const sortedForBrm = [...windowActivities].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
   for (const a of sortedForBrm) {
-    if (a.eventType && BRM_DISTANCES.includes(a.eventType) && !seenDistances.has(a.eventType)) {
-      seenDistances.add(a.eventType);
+    if (!a.eventType) continue;
+    const et = normalizeToSeries(a.eventType as NonNullable<EventType>);
+    if (BRM_DISTANCES.includes(et) && !seenDistances.has(et)) {
+      seenDistances.add(et);
       brmSeriesActivities.push(a);
     }
   }
@@ -542,7 +549,7 @@ export function checkAcp10000(
 
   const mountain600Activity = sortedByDate.find(
     (a) =>
-      a.eventType === "BRM600" &&
+      (a.eventType === "BRM600" || a.eventType === "SR600") &&
       a.elevationGain >= MOUNTAIN_600_ELEVATION
   );
 
@@ -556,8 +563,10 @@ export function checkAcp10000(
   if (seriesCount >= 2) {
     const counts: Record<string, number> = {};
     for (const a of activitiesForSeries) {
-      if (a.eventType && BRM_DISTANCES.includes(a.eventType)) {
-        counts[a.eventType] = (counts[a.eventType] ?? 0) + 1;
+      if (!a.eventType) continue;
+      const et = normalizeToSeries(a.eventType as NonNullable<EventType>);
+      if (BRM_DISTANCES.includes(et)) {
+        counts[et] = (counts[et] ?? 0) + 1;
         if (BRM_DISTANCES.every((d) => (counts[d] ?? 0) >= 2)) {
           twoSeriesDate = new Date(a.date);
           break;
@@ -565,15 +574,20 @@ export function checkAcp10000(
       }
     }
   }
-  // Collect up to 2 activities per BRM distance for the 2x series
+  // Collect up to 2 activities per BRM distance for the 2x series (most recent per distance)
   const twoBrmActivities: QualifyingActivity[] = [];
   const distCounts = new Map<string, number>();
-  for (const a of activitiesForSeries) {
-    if (a.eventType && BRM_DISTANCES.includes(a.eventType)) {
-      const count = distCounts.get(a.eventType) ?? 0;
+  const activitiesForSeriesDesc = [...activitiesForSeries].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+  for (const a of activitiesForSeriesDesc) {
+    if (!a.eventType) continue;
+    const et = normalizeToSeries(a.eventType as NonNullable<EventType>);
+    if (BRM_DISTANCES.includes(et)) {
+      const count = distCounts.get(et) ?? 0;
       if (count < 2) {
         twoBrmActivities.push(a);
-        distCounts.set(a.eventType, count + 1);
+        distCounts.set(et, count + 1);
       }
     }
   }

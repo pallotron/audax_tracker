@@ -123,7 +123,7 @@ export default function AboutPage() {
             across devices. Your Strava activity data, GPS tracks, and personal information are never
             stored in the cloud — only the annotations you create within Audax Tracker.
           </p>
-          {cloudSync.enabled ? (
+          {isAuthenticated && (cloudSync.enabled ? (
             <button
               onClick={() => setShowDisableDialog(true)}
               className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -137,7 +137,7 @@ export default function AboutPage() {
             >
               Enable cloud sync
             </button>
-          )}
+          ))}
           {showConsentDialog && (
             <CloudSyncConsentDialog
               onEnable={() => { cloudSync.enable(); setShowConsentDialog(false); }}

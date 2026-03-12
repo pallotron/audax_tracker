@@ -19,7 +19,7 @@ const EVENT_TYPE_OPTIONS: EventType[] = [
   "PBP",
   "RM1200+",
   "Fleche",
-  "SuperRandonneur",
+  "SR600",
   "TraceVelocio",
   "FlecheDeFrance",
   "Permanent",

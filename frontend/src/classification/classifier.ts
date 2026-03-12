@@ -47,6 +47,9 @@ const NAME_PATTERNS: NamePattern[] = [
   // PBP — only as the event itself, not "PBP qualification" references, and must be long enough
   { pattern: /paris[- ]brest[- ]paris/i, eventType: "PBP", minDistanceKm: 1000 },
   { pattern: /\bpbp(?:\d+)?(?![\w]*qual)/i, eventType: "PBP", minDistanceKm: 1000 },
+  // SR600 / Super Randonnée 600 (mountain brevet, distinct from BRM600)
+  { pattern: /\bsr\s*600\b/i, eventType: "SR600" },
+  { pattern: /super\s+randonn[eé]e\s+600/i, eventType: "SR600" },
   // Fleche variants
   { pattern: /fl[eè]che\s+v[eé]locio/i, eventType: "Fleche" },
   { pattern: /fl[eè]che\s+nationale/i, eventType: "Fleche" },

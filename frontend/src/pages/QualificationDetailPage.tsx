@@ -52,7 +52,7 @@ function RequirementCard({ label, requirement }: RequirementCardProps) {
         byType.get(type)!.push(a);
       }
       
-      const eventOrder = ["BRM200", "BRM300", "BRM400", "BRM600", "BRM1000"];
+      const eventOrder = ["BRM200", "BRM300", "BRM400", "BRM600", "SR600", "BRM1000"];
 
       renderedActivities = (
         <div className="mt-2 space-y-2">
@@ -203,11 +203,16 @@ export default function QualificationDetailPage() {
     .filter((a) => windowActivityIds.has(a.stravaId))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  // For timeline: find the most recent ride per BRM distance in the window
+  // For timeline: find the most recent ride per BRM distance in the window.
+  // SR600 fills the BRM600 slot (whichever is more recent wins).
   const BRM_DISTANCES = ["BRM200", "BRM300", "BRM400", "BRM600", "BRM1000"] as const;
   const latestPerBrmDistance = BRM_DISTANCES.map((dist) => {
-    const match = tableActivities.find((a) => a.eventType === dist);
-    return match ? { distance: dist, name: match.name, date: new Date(match.date), sourceUrl: match.sourceUrl } : null;
+    const match = dist === "BRM600"
+      ? tableActivities.find((a) => a.eventType === "BRM600" || a.eventType === "SR600")
+      : tableActivities.find((a) => a.eventType === dist);
+    if (!match) return null;
+    // Use the actual event type as the label so SR600 shows as "SR600" not "BRM600"
+    return { distance: match.eventType as string, name: match.name, date: new Date(match.date), sourceUrl: match.sourceUrl };
   }).filter(Boolean) as { distance: string; name: string; date: Date; sourceUrl: string }[];
 
   // For timeline: find the most recent ride for single-event requirements
@@ -372,7 +377,7 @@ export default function QualificationDetailPage() {
                     const mountain600Ride = r.label === "Mountain BRM 600 (8000m+)"
                       ? (() => {
                           const m = tableActivities.find(
-                            (a) => a.eventType === "BRM600" && a.elevationGain >= 8000,
+                            (a) => (a.eventType === "BRM600" || a.eventType === "SR600") && a.elevationGain >= 8000,
                           );
                           return m ? { name: m.name, date: new Date(m.date), sourceUrl: m.sourceUrl } : null;
                         })()

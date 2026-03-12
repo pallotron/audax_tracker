@@ -90,6 +90,13 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       setLastSync(now);
       setHasPending(false);
 
+      // If cloud sync is enabled, re-apply cloud overrides now that the DB is
+      // populated. This matters on a new device where the initial pull was a
+      // no-op because the DB was empty at the time.
+      if (cloudSync.enabled) {
+        await cloudSync.pullAndApply();
+      }
+
       // Geocode in background — state lives in context so survives navigation
       setGeocoding({ done: 0, total: 0 });
       geocodeActivities((done, total) => setGeocoding({ done, total }))

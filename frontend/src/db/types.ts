@@ -8,7 +8,7 @@ export type EventType =
   | "PBP"
   | "RM1200+"
   | "Fleche"
-  | "SuperRandonneur"
+  | "SR600"
   | "TraceVelocio"
   | "FlecheDeFrance"
   | "Permanent"

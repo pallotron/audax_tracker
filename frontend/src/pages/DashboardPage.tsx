@@ -34,7 +34,7 @@ function toQualifyingActivity(a: Activity): QualifyingActivity {
 }
 
 export default function DashboardPage() {
-  const { sync, syncing, checking, hasPending, checkPending, progress, error, lastSync } = useSyncContext();
+  const { sync, syncing, checking, hasPending, checkPending, progress, error, lastSync, cloudSync } = useSyncContext();
 
   const activities = useLiveQuery(() => db.activities.toArray(), []);
 
@@ -109,6 +109,13 @@ export default function DashboardPage() {
       </div>
 
       <UnconfirmedRidesNotice count={unconfirmedCount} />
+
+      {cloudSync.enabled && !lastSync && (
+        <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          <span className="font-medium">First time on this device?</span>{" "}
+          Sync with Strava first — your saved classifications will be restored from the cloud automatically once your activities are loaded.
+        </div>
+      )}
 
       {showMigrationNotice && (
         <div className="flex items-start justify-between rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">

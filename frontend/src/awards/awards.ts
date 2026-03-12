@@ -77,7 +77,7 @@ export function checkRrtyYears(activities: AwardsActivity[]): Map<number, Awards
 // ── Brevet 2000/5000 ──────────────────────────────────────────────────────────
 
 const BREVET_TYPES: EventType[] = [
-  "BRM200", "BRM300", "BRM400", "BRM600", "BRM1000", "Permanent",
+  "BRM200", "BRM300", "BRM400", "BRM600", "BRM1000", "SR600", "Permanent",
 ];
 
 export function activitySeason(dateStr: string): string {
@@ -123,16 +123,20 @@ export function checkSuperRandonneur(
 ): Map<string, SuperRandonneurStatus> {
   const result = new Map<string, SuperRandonneurStatus>();
   const srDistances = ["BRM200", "BRM300", "BRM400", "BRM600"] as const;
+  // SR600 counts as BRM600 for the Super Randonneur award
+  const srEligibleTypes = [...srDistances, "SR600"] as const;
 
   for (const a of activities) {
-    if (!isAwardEligible(a) || !srDistances.includes(a.eventType as any)) continue;
+    if (!isAwardEligible(a) || !srEligibleTypes.includes(a.eventType as any)) continue;
     const season = activitySeason(a.date);
     if (!result.has(season)) {
       result.set(season, { met: false, distances: new Set(), activities: [] });
     }
     const status = result.get(season)!;
-    if (!status.distances.has(a.eventType as EventType)) {
-      status.distances.add(a.eventType as EventType);
+    // Normalise SR600 → BRM600 for the distances set
+    const effectiveType = (a.eventType === "SR600" ? "BRM600" : a.eventType) as EventType;
+    if (!status.distances.has(effectiveType)) {
+      status.distances.add(effectiveType);
       status.activities.push(a);
     }
     if (srDistances.every((d) => status.distances.has(d))) {

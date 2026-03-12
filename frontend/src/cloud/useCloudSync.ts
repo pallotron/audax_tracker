@@ -15,6 +15,11 @@ export interface CloudSyncHook {
   enable: () => void;
   disable: (deleteCloud: boolean) => Promise<void>;
   retry: () => void;
+  /**
+   * Pull cloud overrides and apply them to the local DB.
+   * Safe to call on a populated DB (e.g. after a fresh Strava sync on a new device).
+   */
+  pullAndApply: () => Promise<void>;
   status: CloudSyncStatus;
   lastSynced: string | null;
   error: string | null;
@@ -52,34 +57,36 @@ export function useCloudSync(): CloudSyncHook {
     debounceRef.current = setTimeout(() => { push(); }, DEBOUNCE_MS);
   }, [push]);
 
-  // Pull on mount when enabled, then push if local is newer
-  useEffect(() => {
-    if (!enabled) return;
-    (async () => {
-      try {
-        setStatus("syncing");
-        const token = await getAccessToken();
-        const cloud = await getOverrides(config.oauthWorkerUrl, token);
-        if (cloud) {
-          const lastPush = localStorage.getItem(LAST_PUSH_KEY);
-          if (!lastPush || cloud.exportedAt > lastPush) {
-            await importBackup(cloud);
-            // Propagate cross-device preference
-            if (cloud.preferences?.cloudSyncEnabled) {
-              localStorage.setItem(ENABLED_KEY, "true");
-            }
-            setStatus("synced");
-          } else {
-            await push();
+  const pullAndApply = useCallback(async () => {
+    try {
+      setStatus("syncing");
+      const token = await getAccessToken();
+      const cloud = await getOverrides(config.oauthWorkerUrl, token);
+      if (cloud) {
+        const lastPush = localStorage.getItem(LAST_PUSH_KEY);
+        if (!lastPush || cloud.exportedAt > lastPush) {
+          await importBackup(cloud);
+          // Propagate cross-device preference
+          if (cloud.preferences?.cloudSyncEnabled) {
+            localStorage.setItem(ENABLED_KEY, "true");
           }
+          setStatus("synced");
         } else {
           await push();
         }
-      } catch (err) {
-        setStatus("error");
-        setError(err instanceof Error ? err.message : "Sync failed");
+      } else {
+        await push();
       }
-    })();
+    } catch (err) {
+      setStatus("error");
+      setError(err instanceof Error ? err.message : "Sync failed");
+    }
+  }, [getAccessToken, push]);
+
+  // Pull on mount when enabled, then push if local is newer
+  useEffect(() => {
+    if (!enabled) return;
+    pullAndApply();
   // Only re-run when enabled flips
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
@@ -120,5 +127,5 @@ export function useCloudSync(): CloudSyncHook {
     [getAccessToken]
   );
 
-  return { enabled, enable, disable, retry: push, status, lastSynced, error };
+  return { enabled, enable, disable, retry: push, pullAndApply, status, lastSynced, error };
 }

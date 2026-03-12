@@ -11,7 +11,7 @@ const EVENT_TYPE_OPTIONS: { value: EventType; label: string }[] = [
   { value: "PBP", label: "PBP" },
   { value: "RM1200+", label: "RM1200+" },
   { value: "Fleche", label: "Fleche" },
-  { value: "SuperRandonneur", label: "SuperRandonneur" },
+  { value: "SR600", label: "SR600" },
   { value: "TraceVelocio", label: "TraceVelocio" },
   { value: "FlecheDeFrance", label: "FlecheDeFrance" },
   { value: "Permanent", label: "Permanent" },

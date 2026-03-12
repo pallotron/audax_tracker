@@ -20,7 +20,7 @@ const AUDAX_EVENT_TYPES_ROW1: NonNullable<EventType>[] = [
 
 const AUDAX_EVENT_TYPES_ROW2: NonNullable<EventType>[] = [
   "Fleche",
-  "SuperRandonneur",
+  "SR600",
   "TraceVelocio",
   "FlecheDeFrance",
   "Permanent",
@@ -61,6 +61,7 @@ export default function ActivitiesPage() {
     () => searchParams.get("needsConfirm") === "1"
   );
   const [dnfOnly, setDnfOnly] = useState(false);
+  const [needsHomologationOnly, setNeedsHomologationOnly] = useState(false);
   const [textFilter, setTextFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -97,6 +98,7 @@ export default function ActivitiesPage() {
         if (!selectedTypes.has(typeKey)) return false;
       }
       if (dnfOnly && !a.dnf) return false;
+      if (needsHomologationOnly && !(a.eventType !== null && !a.homologationNumber)) return false;
       if (textFilter) {
         const q = textFilter.toLowerCase();
         if (!a.name.toLowerCase().includes(q)) return false;
@@ -110,7 +112,7 @@ export default function ActivitiesPage() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return result;
-  }, [activities, yearFilter, selectedTypes, audaxOnly, needsConfirmOnly, dnfOnly, textFilter, sortKey, sortDir]);
+  }, [activities, yearFilter, selectedTypes, audaxOnly, needsConfirmOnly, dnfOnly, needsHomologationOnly, textFilter, sortKey, sortDir]);
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
@@ -301,6 +303,15 @@ export default function ActivitiesPage() {
               className="rounded border-gray-300 text-red-500 focus:ring-red-400"
             />
             😢 DNF only
+          </label>
+          <label className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={needsHomologationOnly}
+              onChange={(e) => { setNeedsHomologationOnly(e.target.checked); resetPage(); }}
+              className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+            />
+            Missing homologation #
           </label>
         </div>
         <div className="space-y-1.5">
