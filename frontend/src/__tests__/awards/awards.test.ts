@@ -186,6 +186,22 @@ describe("checkFourProvinces", () => {
     const act = makeActivity({ date: "2025-03-01", startRegion: null });
     expect(checkFourProvinces([act]).size).toBe(0);
   });
+
+  it("counts a Northern Ireland ride as Ulster province", () => {
+    const activities = [
+      makeActivity({ date: "2025-03-01", startRegion: "Leinster" }),
+      makeActivity({ date: "2025-04-01", startRegion: "Munster" }),
+      makeActivity({ date: "2025-05-01", startRegion: "Connacht" }),
+      makeActivity({
+        date: "2025-06-01",
+        startCountry: "United Kingdom",
+        startRegion: "Northern Ireland",
+      }),
+    ];
+    const result = checkFourProvinces(activities);
+    expect(result.get("2024-25")?.met).toBe(true);
+    expect(result.get("2024-25")?.provinces["Ulster"]).toHaveLength(1);
+  });
 });
 
 // ── Easter Flèche ────────────────────────────────────────────────────────────
@@ -267,7 +283,7 @@ describe("checkFourNations", () => {
     expect(checkFourNations(activities).met).toBe(false);
   });
 
-  it("requires start and end in same nation", () => {
+  it("treats a ride crossing Republic/Northern Ireland border as Ireland", () => {
     const crossBorder = makeActivity({
       eventType: "BRM200",
       distance: 200,
@@ -283,7 +299,45 @@ describe("checkFourNations", () => {
       makeNationActivity("BRM400", "Scotland"),
       makeNationActivity("BRM600", "Wales"),
     ];
+    expect(checkFourNations(activities).met).toBe(true);
+  });
+
+  it("does not count a ride crossing Ireland and England border", () => {
+    const crossBorder = makeActivity({
+      eventType: "BRM200",
+      distance: 200,
+      date: "2025-03-01",
+      startCountry: "Ireland",
+      startRegion: "Leinster",
+      endCountry: "United Kingdom",
+      endRegion: "England",
+    });
+    const activities = [
+      crossBorder,
+      makeNationActivity("BRM300", "England"),
+      makeNationActivity("BRM400", "Scotland"),
+      makeNationActivity("BRM600", "Wales"),
+    ];
     expect(checkFourNations(activities).met).toBe(false);
+  });
+
+  it("counts a ride entirely within Northern Ireland as Ireland", () => {
+    const niRide = makeActivity({
+      eventType: "BRM200",
+      distance: 200,
+      date: "2025-03-01",
+      startCountry: "United Kingdom",
+      startRegion: "Northern Ireland",
+      endCountry: "United Kingdom",
+      endRegion: "Northern Ireland",
+    });
+    const activities = [
+      niRide,
+      makeNationActivity("BRM300", "England"),
+      makeNationActivity("BRM400", "Scotland"),
+      makeNationActivity("BRM600", "Wales"),
+    ];
+    expect(checkFourNations(activities).met).toBe(true);
   });
 });
 
@@ -363,6 +417,14 @@ describe("getInternationalRides", () => {
   it("excludes DNF activities", () => {
     const dnfAbroad = makeActivity({ startCountry: "France", dnf: true });
     expect(getInternationalRides([dnfAbroad])).toHaveLength(0);
+  });
+
+  it("does not treat Northern Ireland as international", () => {
+    const niRide = makeActivity({
+      startCountry: "United Kingdom",
+      startRegion: "Northern Ireland",
+    });
+    expect(getInternationalRides([niRide])).toHaveLength(0);
   });
 
   it("sorts by date descending (most recent first)", () => {

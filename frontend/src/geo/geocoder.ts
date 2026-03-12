@@ -42,6 +42,10 @@ export function parseNominatimRegion(address: {
   }
 
   if (country === "United Kingdom") {
+    if (address.state === "Northern Ireland") {
+      const region = address.county ? (countyToProvince(address.county) ?? "Ulster") : "Ulster";
+      return { country: "Ireland", region };
+    }
     return { country, region: address.state ?? null };
   }
 
@@ -94,7 +98,8 @@ export async function geocodeActivities(
       a.startLat !== null &&
       a.eventType !== null &&
       (a.startCountry === null ||
-        (a.startCountry === "Ireland" && a.startRegion === null))
+        (a.startCountry === "Ireland" && a.startRegion === null) ||
+        (a.startCountry === "United Kingdom" && a.startRegion === "Northern Ireland"))
   );
   if (toGeocode.length === 0) return;
 
