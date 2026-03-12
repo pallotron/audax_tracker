@@ -2,6 +2,7 @@ import { useState } from "react";
 import { db, type Activity, setExcludeFromAwards, confirmActivity } from "../db/database";
 import type { EventType } from "../db/types";
 import { EventTypeBadge } from "./EventTypeBadge";
+import { formatDate } from "../utils/date";
 
 interface ActivityRowProps {
   activity: Activity;
@@ -158,7 +159,7 @@ export function ActivityRow({ activity, selected, onToggle }: ActivityRowProps) 
         />
       </td>
       <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-900">
-        {date.toLocaleDateString()}
+        {formatDate(date)}
       </td>
       <td className="max-w-xs truncate px-3 py-2 text-sm text-gray-900">
         <a

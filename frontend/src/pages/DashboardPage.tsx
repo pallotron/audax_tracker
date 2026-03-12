@@ -13,6 +13,7 @@ import { QualificationCard } from "../components/QualificationCard";
 import { Link } from "react-router-dom";
 import { UnconfirmedRidesNotice } from "../components/UnconfirmedRidesNotice";
 import { shouldShowMigrationNotice, dismissMigrationNotice as _dismiss } from "../utils/migrationNotice";
+import { formatDate } from "../utils/date";
 import { BackupTransferButton } from "../components/BackupTransferButton";
 
 
@@ -209,9 +210,9 @@ export default function DashboardPage() {
                 <li key={ev.stravaId} className="flex items-center gap-2 text-sm text-yellow-700">
                   <span className="font-medium">{ev.eventType}</span>
                   <span className="truncate max-w-xs">{ev.name}</span>
-                  <span>({ev.date.toLocaleDateString()})</span>
+                  <span>({formatDate(ev.date)})</span>
                   <span className="text-yellow-600">
-                    — expires {ev.expiresAt.toLocaleDateString()}
+                    — expires {formatDate(ev.expiresAt)}
                   </span>
                   <span className="text-xs text-yellow-500 italic">
                     (affects {ev.affects.join(", ")})

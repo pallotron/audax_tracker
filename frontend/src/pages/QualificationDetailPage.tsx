@@ -14,6 +14,7 @@ import {
 import { isAwardEligible } from "../classification/classifier";
 import { ProgressBar } from "../components/ProgressBar";
 import { EventTypeBadge, ClassificationLegend } from "../components/EventTypeBadge";
+import { formatDate } from "../utils/date";
 
 function toQualifyingActivities(activities: Activity[]): QualifyingActivity[] {
   return activities
@@ -72,7 +73,7 @@ function RequirementCard({ label, requirement }: RequirementCardProps) {
                       {a.name}
                     </a>
                     {" "}
-                    <span>({new Date(a.date).toLocaleDateString()})</span>
+                    <span>({formatDate(new Date(a.date))})</span>
                     {" · "}
                     <span>{Math.round(a.distance)} km</span>
                   </p>
@@ -93,7 +94,7 @@ function RequirementCard({ label, requirement }: RequirementCardProps) {
                 {a.name}
               </a>
               {" "}
-              <span>({new Date(a.date).toLocaleDateString()})</span>
+              <span>({formatDate(new Date(a.date))})</span>
               {" · "}
               <span>{Math.round(a.distance)} km</span>
             </p>
@@ -137,7 +138,7 @@ function RequirementCard({ label, requirement }: RequirementCardProps) {
         </p>
         {requirement.completedDate && (
           <p className="text-xs text-gray-400">
-            Completed: {requirement.completedDate.toLocaleDateString()}
+            Completed: {formatDate(requirement.completedDate)}
           </p>
         )}
         {renderedActivities}
@@ -261,8 +262,8 @@ export default function QualificationDetailPage() {
               <>
                 {" "}
                 &mdash; best window:{" "}
-                {windowDates.start.toLocaleDateString()} to{" "}
-                {windowDates.end.toLocaleDateString()}
+                {formatDate(windowDates.start)} to{" "}
+                {formatDate(windowDates.end)}
               </>
             )}
           </p>
@@ -337,9 +338,9 @@ export default function QualificationDetailPage() {
                 >
                   {ev.name}
                 </a>
-                <span>({ev.date.toLocaleDateString()})</span>
+                <span>({formatDate(ev.date)})</span>
                 <span className="text-yellow-600">
-                  — expires {ev.expiresAt.toLocaleDateString()}
+                  — expires {formatDate(ev.expiresAt)}
                 </span>
                 <span className="text-xs text-yellow-500 italic">
                   (affects {ev.affects.join(", ")})
@@ -389,7 +390,7 @@ export default function QualificationDetailPage() {
                         <div className="absolute left-1.5 top-0.5 h-3 w-3 rounded-full bg-green-500 ring-2 ring-white" />
                         <div className="flex items-center gap-3">
                           <span className="text-xs text-gray-400 w-24 flex-shrink-0">
-                            {r.requirement.completedDate!.toLocaleDateString()}
+                            {formatDate(r.requirement.completedDate!)}
                           </span>
                           <span className="text-sm font-medium text-gray-900">
                             {r.label}
@@ -404,7 +405,7 @@ export default function QualificationDetailPage() {
                                 <a href={d.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 hover:underline">
                                   {d.name}
                                 </a>
-                                {" "}({d.date.toLocaleDateString()})
+                                {" "}({formatDate(d.date)})
                               </p>
                             ))}
                           </div>
@@ -414,7 +415,7 @@ export default function QualificationDetailPage() {
                             <a href={singleRide.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 hover:underline">
                               {singleRide.name}
                             </a>
-                            {" "}({singleRide.date.toLocaleDateString()})
+                            {" "}({formatDate(singleRide.date)})
                           </p>
                         )}
                       </div>
@@ -476,7 +477,7 @@ export default function QualificationDetailPage() {
                 {tableActivities.map((activity) => (
                   <tr key={activity.stravaId} className="hover:bg-gray-50">
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900">
-                      {new Date(activity.date).toLocaleDateString()}
+                      {formatDate(new Date(activity.date))}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900">
                       <a

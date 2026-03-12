@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type Activity } from "../db/database";
 import { EventTypeBadge, ClassificationLegend } from "../components/EventTypeBadge";
+import { formatDate } from "../utils/date";
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -195,7 +196,7 @@ export default function YearlySummaryPage() {
               {yearActivities.map((activity: Activity) => (
                 <tr key={activity.stravaId} className="hover:bg-gray-50">
                   <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900">
-                    {new Date(activity.date).toLocaleDateString()}
+                    {formatDate(new Date(activity.date))}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900">
                     {activity.name}
