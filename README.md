@@ -146,6 +146,16 @@ Set these secrets in your GitHub repository settings:
 | `VITE_OAUTH_WORKER_URL` | Worker base URL (e.g. `https://api.audax-tracker.angelofailla.com`) |
 | `VITE_OAUTH_CALLBACK_URL` | Worker callback URL (e.g. `https://api.audax-tracker.angelofailla.com/oauth/callback`) |
 
+## Geographic Notes
+
+### Northern Ireland
+
+Rides in Northern Ireland are geocoded by OpenStreetMap/Nominatim as `United Kingdom`, but for all award tracking purposes the app treats the entire island of Ireland as a single entity called "Ireland". Concretely:
+
+- A ride starting and/or ending in Northern Ireland counts as **Ireland** (province: Ulster) for the 4 Provinces award and the 4 Nations SR.
+- Northern Ireland rides do **not** appear in the international rides log.
+- Any rides already stored with `country = United Kingdom / region = Northern Ireland` are automatically re-geocoded to `Ireland / Ulster` on the next Strava sync.
+
 ## Classification Logic
 
 Activities are classified in order:
