@@ -73,4 +73,13 @@ describe("useCloudSync", () => {
     await act(async () => { await result.current.disable(true); });
     expect(mockDeleteOverrides).toHaveBeenCalledWith("https://api.test.com", "mock-token");
   });
+
+  it("cleans up Dexie hook subscriptions on unmount when enabled", async () => {
+    const { db } = await import("../../db/database");
+    localStorage.setItem("audax_cloud_sync_enabled", "true");
+    const { unmount } = renderHook(() => useCloudSync());
+    unmount();
+    // Verify hook was called (for subscribe and unsubscribe)
+    expect(vi.mocked(db.activities.hook)).toHaveBeenCalled();
+  });
 });

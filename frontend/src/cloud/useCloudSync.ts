@@ -90,9 +90,11 @@ export function useCloudSync(): CloudSyncHook {
     const handler = () => schedulePush();
     db.activities.hook("creating", handler);
     db.activities.hook("updating", handler);
+    db.activities.hook("deleting", handler);
     return () => {
       db.activities.hook("creating").unsubscribe(handler);
       db.activities.hook("updating").unsubscribe(handler);
+      db.activities.hook("deleting").unsubscribe(handler);
     };
   }, [enabled, schedulePush]);
 
