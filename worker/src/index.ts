@@ -253,6 +253,12 @@ async function handleDeleteOverrides(
 ): Promise<Response> {
   const result = await resolveAthleteId(request, headers);
   if (result instanceof Response) return result;
+  if (!checkRateLimit(result.id)) {
+    return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
+      status: 429,
+      headers: { ...headers, "Content-Type": "application/json" },
+    });
+  }
   await env.OVERRIDES_KV.delete(`overrides:${result.id}`);
   return new Response(null, { status: 200, headers });
 }
