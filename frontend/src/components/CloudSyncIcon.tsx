@@ -3,25 +3,32 @@ import type { CloudSyncHook } from "../cloud/useCloudSync";
 interface Props {
   sync: CloudSyncHook;
   onRetry?: () => void;
+  onDisable?: () => void;
 }
 
-export default function CloudSyncIcon({ sync, onRetry }: Props) {
+export default function CloudSyncIcon({ sync, onRetry, onDisable }: Props) {
   if (!sync.enabled) return null;
 
+  const isClickable = sync.status === "error" || sync.status === "synced" || sync.status === "idle";
   const tooltip =
     sync.status === "synced" && sync.lastSynced
-      ? `Last synced: ${new Date(sync.lastSynced).toLocaleTimeString()}`
+      ? `Last synced: ${new Date(sync.lastSynced).toLocaleTimeString()} — click to manage`
       : sync.status === "error"
       ? `${sync.error ?? "Sync error"} — click to retry`
       : sync.status === "syncing"
       ? "Syncing to cloud…"
-      : "Cloud sync enabled";
+      : "Cloud sync enabled — click to manage";
+
+  const handleClick = () => {
+    if (sync.status === "error") onRetry?.();
+    else onDisable?.();
+  };
 
   return (
     <span
       title={tooltip}
-      className={`inline-flex items-center ${sync.status === "error" ? "cursor-pointer" : ""}`}
-      onClick={sync.status === "error" ? onRetry : undefined}
+      className={`inline-flex items-center ${isClickable ? "cursor-pointer" : ""}`}
+      onClick={isClickable ? handleClick : undefined}
     >
       {sync.status === "syncing" && (
         <svg className="animate-spin h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
