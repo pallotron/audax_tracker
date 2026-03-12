@@ -76,10 +76,13 @@ describe("useCloudSync", () => {
 
   it("cleans up Dexie hook subscriptions on unmount when enabled", async () => {
     const { db } = await import("../../db/database");
+    const unsubscribeMock = vi.fn();
+    vi.mocked(db.activities.hook).mockReturnValue({ unsubscribe: unsubscribeMock });
     localStorage.setItem("audax_cloud_sync_enabled", "true");
     const { unmount } = renderHook(() => useCloudSync());
+    // Clear calls accumulated during mount before asserting cleanup
+    unsubscribeMock.mockClear();
     unmount();
-    // Verify hook was called (for subscribe and unsubscribe)
-    expect(vi.mocked(db.activities.hook)).toHaveBeenCalled();
+    expect(unsubscribeMock).toHaveBeenCalledTimes(3);
   });
 });
