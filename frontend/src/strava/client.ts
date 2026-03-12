@@ -17,23 +17,7 @@ export interface StravaActivityResponse {
 
 const STRAVA_API = "https://www.strava.com/api/v3";
 const PAGE_SIZE = 200;
-
-export async function fetchAthleteActivityCount(
-  accessToken: string,
-  athleteId: number
-): Promise<number> {
-  const response = await fetch(
-    `${STRAVA_API}/athletes/${athleteId}/stats`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  if (!response.ok) return 0;
-  const data = await response.json();
-  // Sum all activity types, not just rides
-  const rides = data.all_ride_totals?.count ?? 0;
-  const runs = data.all_run_totals?.count ?? 0;
-  const swims = data.all_swim_totals?.count ?? 0;
-  return rides + runs + swims;
-}
+const MAX_RETRY_WAIT_SECONDS = 300;
 
 export function mapStravaActivity(raw: StravaActivityResponse): Activity {
   const distanceKm = raw.distance / 1000;
@@ -90,10 +74,45 @@ export async function hasNewActivities(
   return Array.isArray(data) && data.length > 0;
 }
 
+async function fetchPage(
+  accessToken: string,
+  params: URLSearchParams,
+  onRateLimit?: (waitSeconds: number) => void
+): Promise<StravaActivityResponse[]> {
+  const url = `${STRAVA_API}/athlete/activities?${params.toString()}`;
+  const headers = { Authorization: `Bearer ${accessToken}` };
+
+  const response = await fetch(url, { headers });
+
+  if (response.status === 429) {
+    const retryAfter = parseInt(response.headers.get("Retry-After") ?? "0", 10);
+    if (retryAfter > 0 && retryAfter <= MAX_RETRY_WAIT_SECONDS) {
+      onRateLimit?.(retryAfter);
+      await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
+      const retry = await fetch(url, { headers });
+      if (!retry.ok) {
+        throw new Error(`Strava rate limit reached. Try again later.`);
+      }
+      return retry.json();
+    }
+    const minutes = retryAfter > 0 ? Math.ceil(retryAfter / 60) : 15;
+    throw new Error(
+      `Strava rate limit reached. Try again in ~${minutes} minute${minutes !== 1 ? "s" : ""}.`
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error(`Strava API error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
 export async function fetchAllActivities(
   accessToken: string,
   after?: number,
-  onProgress?: (fetched: number, page: number) => void
+  onProgress?: (fetched: number, page: number) => void,
+  onRateLimit?: (waitSeconds: number) => void
 ): Promise<Activity[]> {
   const activities: Activity[] = [];
   let page = 1;
@@ -107,24 +126,7 @@ export async function fetchAllActivities(
       params.set("after", String(after));
     }
 
-    const response = await fetch(
-      `${STRAVA_API}/athlete/activities?${params.toString()}`,
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }
-    );
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        const minutesUntilReset = 15 - (new Date().getMinutes() % 15);
-        throw new Error(
-          `Strava rate limit reached. Try again in ~${minutesUntilReset} minute${minutesUntilReset !== 1 ? "s" : ""}.`
-        );
-      }
-      throw new Error(`Strava API error: ${response.status}`);
-    }
-
-    const data: StravaActivityResponse[] = await response.json();
+    const data = await fetchPage(accessToken, params, onRateLimit);
     activities.push(...data.map(mapStravaActivity));
     onProgress?.(activities.length, page);
 

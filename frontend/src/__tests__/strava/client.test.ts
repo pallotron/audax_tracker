@@ -108,4 +108,65 @@ describe("fetchAllActivities", () => {
     expect(callCount).toBe(2);
     expect(results).toHaveLength(201);
   });
+
+  it("retries once on 429 with Retry-After ≤ 300s and succeeds", async () => {
+    vi.useFakeTimers();
+    const page = [
+      {
+        id: 1,
+        name: "Ride 1",
+        distance: 50000,
+        moving_time: 3600,
+        elapsed_time: 4000,
+        total_elevation_gain: 100,
+        type: "Ride",
+        sport_type: "Ride",
+        start_date: "2025-01-01T00:00:00Z",
+        start_latlng: [] as [],
+        end_latlng: [] as [],
+      },
+    ];
+    let callCount = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      callCount++;
+      if (callCount === 1) {
+        return new Response(null, {
+          status: 429,
+          headers: { "Retry-After": "30" },
+        });
+      }
+      return new Response(JSON.stringify(page));
+    });
+
+    const onRateLimit = vi.fn();
+    const promise = fetchAllActivities("fake-token", undefined, undefined, onRateLimit);
+    await vi.runAllTimersAsync();
+    const results = await promise;
+
+    expect(callCount).toBe(2);
+    expect(onRateLimit).toHaveBeenCalledWith(30);
+    expect(results).toHaveLength(1);
+    vi.useRealTimers();
+  });
+
+  it("throws immediately on 429 with Retry-After > 300s", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+      new Response(null, {
+        status: 429,
+        headers: { "Retry-After": "600" },
+      })
+    );
+    await expect(fetchAllActivities("fake-token")).rejects.toThrow(
+      /rate limit/i
+    );
+  });
+
+  it("throws immediately on 429 with no Retry-After header", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+      new Response(null, { status: 429 })
+    );
+    await expect(fetchAllActivities("fake-token")).rejects.toThrow(
+      /rate limit/i
+    );
+  });
 });

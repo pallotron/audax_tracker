@@ -6,6 +6,8 @@ import { geocodeActivities } from "../geo/geocoder";
 import { useCloudSync, type CloudSyncHook } from "../cloud/useCloudSync";
 
 const LAST_SYNC_KEY = "audax_last_sync";
+const CHECK_COOLDOWN_KEY = "audax_last_check";
+const CHECK_COOLDOWN_MS = 60_000;
 
 interface SyncContextValue {
   sync: () => Promise<void>;
@@ -15,6 +17,7 @@ interface SyncContextValue {
   hasPending: boolean;
   progress: { fetched: number; total: number } | null;
   geocoding: { done: number; total: number } | null;
+  rateLimitWait: number | null;
   error: string | null;
   lastSync: string | null;
   cloudSync: CloudSyncHook;
@@ -24,7 +27,7 @@ const SyncContext = createContext<SyncContextValue | null>(null);
 
 export function computeAfterEpoch(lastSync: string | null): number | undefined {
   return lastSync
-    ? Math.floor(new Date(lastSync).getTime() / 1000)
+    ? Math.floor(new Date(lastSync).getTime() / 1000) - 60
     : undefined;
 }
 
@@ -34,6 +37,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(false);
   const [hasPending, setHasPending] = useState(false);
   const [progress, setProgress] = useState<{ fetched: number; total: number } | null>(null);
+  const [rateLimitWait, setRateLimitWait] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<string | null>(
     () => localStorage.getItem(LAST_SYNC_KEY)
@@ -45,15 +49,19 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     setSyncing(true);
     setError(null);
     setProgress(null);
+    setRateLimitWait(null);
 
     try {
       const token = await getAccessToken();
 
       const afterEpoch = computeAfterEpoch(lastSync);
 
-      const activities = await fetchAllActivities(token, afterEpoch, (fetched) => {
-        setProgress({ fetched, total: 0 });
-      });
+      const activities = await fetchAllActivities(
+        token,
+        afterEpoch,
+        (fetched) => setProgress({ fetched, total: 0 }),
+        (waitSeconds) => setRateLimitWait(waitSeconds)
+      );
 
       await db.transaction("rw", db.activities, async () => {
         for (const activity of activities) {
@@ -107,10 +115,15 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setSyncing(false);
       setProgress(null);
+      setRateLimitWait(null);
     }
   }, [getAccessToken, lastSync]);
 
   const checkPending = useCallback(async () => {
+    const lastCheck = localStorage.getItem(CHECK_COOLDOWN_KEY);
+    if (lastCheck && Date.now() - new Date(lastCheck).getTime() < CHECK_COOLDOWN_MS) {
+      return;
+    }
     setChecking(true);
     try {
       const token = await getAccessToken();
@@ -119,6 +132,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         : 0;
       const pending = await hasNewActivities(token, afterEpoch);
       setHasPending(pending);
+      localStorage.setItem(CHECK_COOLDOWN_KEY, new Date().toISOString());
     } catch {
       // silently ignore — network or auth failure
     } finally {
@@ -128,7 +142,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <SyncContext.Provider
-      value={{ sync, checkPending, syncing, checking, hasPending, progress, geocoding, error, lastSync, cloudSync }}
+      value={{ sync, checkPending, syncing, checking, hasPending, progress, geocoding, rateLimitWait, error, lastSync, cloudSync }}
     >
       {children}
     </SyncContext.Provider>

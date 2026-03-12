@@ -35,7 +35,7 @@ function toQualifyingActivity(a: Activity): QualifyingActivity {
 }
 
 export default function DashboardPage() {
-  const { sync, syncing, checking, hasPending, checkPending, progress, error, lastSync, cloudSync } = useSyncContext();
+  const { sync, syncing, checking, hasPending, checkPending, progress, rateLimitWait, error, lastSync, cloudSync } = useSyncContext();
 
   const activities = useLiveQuery(() => db.activities.toArray(), []);
 
@@ -96,7 +96,7 @@ export default function DashboardPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                {progress ? `Fetched ${progress.fetched} activities…` : "Connecting..."}
+                {progress ? `Fetched ${progress.fetched} activities…` : rateLimitWait ? `Rate limited — retrying…` : "Connecting..."}
               </>
             ) : checking ? (
               "Checking Strava…"
@@ -133,6 +133,12 @@ export default function DashboardPage() {
           >
             ✕
           </button>
+        </div>
+      )}
+
+      {syncing && rateLimitWait && (
+        <div className="rounded-md border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+          Strava rate limit reached — waiting {rateLimitWait}s then retrying automatically…
         </div>
       )}
 
