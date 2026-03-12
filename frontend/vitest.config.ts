@@ -6,6 +6,6 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "jsdom",
-    setupFiles: ["fake-indexeddb/auto"],
+    setupFiles: ["fake-indexeddb/auto", "@testing-library/jest-dom"],
   },
 });
