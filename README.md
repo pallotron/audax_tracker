@@ -4,6 +4,8 @@
 
 # Audax Tracker
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/angelofailla)
+
 A web app that pulls cycling activities from Strava, classifies qualifying audax/randonneuring events, and tracks progress toward a range of annual and lifetime awards.
 
 ## Features
