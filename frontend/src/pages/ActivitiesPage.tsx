@@ -64,7 +64,7 @@ function getSortValue(a: Activity, key: SortKey): string | number {
 }
 
 export default function ActivitiesPage() {
-  const { syncing, progress, error } = useSyncContext();
+  const { syncing, progress, error, refreshActivity, refreshing, refreshErrors } = useSyncContext();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // All filter state lives in the URL
@@ -520,6 +520,9 @@ export default function ActivitiesPage() {
                     activity={a}
                     selected={selectedIds.has(a.stravaId)}
                     onToggle={toggleSelect}
+                    onRefresh={() => refreshActivity(a.stravaId)}
+                    refreshing={refreshing.has(a.stravaId)}
+                    refreshError={refreshErrors.get(a.stravaId) ?? null}
                   />
                 ))}
               </tbody>
