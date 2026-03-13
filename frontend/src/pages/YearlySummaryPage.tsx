@@ -3,12 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db, type Activity } from "../db/database";
 import { EventTypeBadge, ClassificationLegend } from "../components/EventTypeBadge";
 import { formatDate } from "../utils/date";
-
-function formatDuration(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  return `${h}h${m.toString().padStart(2, "0")}m`;
-}
+import { formatDuration } from "../utils/formatDuration";
 
 export default function YearlySummaryPage() {
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
@@ -43,10 +38,14 @@ export default function YearlySummaryPage() {
 
   const rideCount = yearActivities.length;
   const totalKm = yearActivities.reduce((sum, a) => sum + a.distance, 0);
-  const totalElevation = yearActivities.reduce(
-    (sum, a) => sum + a.elevationGain,
-    0,
-  );
+  const totalElevation = yearActivities.reduce((sum, a) => sum + a.elevationGain, 0);
+  const totalMoving = yearActivities.reduce((sum, a) => sum + a.movingTime, 0);
+  const totalElapsed = yearActivities.reduce((sum, a) => sum + a.elapsedTime, 0);
+  const byCountry = new Map<string, number>();
+  for (const a of yearActivities) {
+    const key = a.startCountry ?? "Unknown";
+    byCountry.set(key, (byCountry.get(key) ?? 0) + 1);
+  }
 
   const yearlyStats = useMemo(() => {
     return years.map((year) => {
@@ -73,7 +72,7 @@ export default function YearlySummaryPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Yearly Summary</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Audax Yearly Summary</h1>
         {years.length > 1 && (
           <button
             onClick={() => setShowComparison((v) => !v)}
@@ -134,27 +133,41 @@ export default function YearlySummaryPage() {
       )}
 
       {/* Stats cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="rounded-lg bg-white p-4 shadow">
-          <p className="text-sm text-gray-500">Year</p>
-          <p className="text-2xl font-bold text-gray-900">{activeYear}</p>
-        </div>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         <div className="rounded-lg bg-white p-4 shadow">
           <p className="text-sm text-gray-500">Audax Rides</p>
           <p className="text-2xl font-bold text-gray-900">{rideCount}</p>
         </div>
         <div className="rounded-lg bg-white p-4 shadow">
           <p className="text-sm text-gray-500">Total Km</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {Math.round(totalKm).toLocaleString()}
-          </p>
+          <p className="text-2xl font-bold text-gray-900">{Math.round(totalKm).toLocaleString()}</p>
         </div>
         <div className="rounded-lg bg-white p-4 shadow">
           <p className="text-sm text-gray-500">Total Elevation</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {Math.round(totalElevation).toLocaleString()} m
-          </p>
+          <p className="text-2xl font-bold text-gray-900">{Math.round(totalElevation).toLocaleString()} m</p>
         </div>
+        <div className="rounded-lg bg-white p-4 shadow">
+          <p className="text-sm text-gray-500">Moving time</p>
+          <p className="text-2xl font-bold text-gray-900">{formatDuration(totalMoving)}</p>
+        </div>
+        <div className="rounded-lg bg-white p-4 shadow">
+          <p className="text-sm text-gray-500">Elapsed time</p>
+          <p className="text-2xl font-bold text-gray-900">{formatDuration(totalElapsed)}</p>
+        </div>
+        {byCountry.size > 0 && (
+          <div className="rounded-lg bg-white p-4 shadow">
+            <p className="text-sm text-gray-500">Locations</p>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {[...byCountry.entries()]
+                .sort((a, b) => b[1] - a[1])
+                .map(([country, count]) => (
+                  <span key={country} className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
+                    {country} × {count}
+                  </span>
+                ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Events table or empty state */}

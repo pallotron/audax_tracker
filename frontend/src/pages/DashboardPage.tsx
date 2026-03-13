@@ -14,7 +14,6 @@ import { Link } from "react-router-dom";
 import { UnconfirmedRidesNotice } from "../components/UnconfirmedRidesNotice";
 import { shouldShowMigrationNotice, dismissMigrationNotice as _dismiss } from "../utils/migrationNotice";
 import { formatDate } from "../utils/date";
-import { BackupTransferButton } from "../components/BackupTransferButton";
 
 
 function toQualifyingActivity(a: Activity): QualifyingActivity {
@@ -36,7 +35,7 @@ function toQualifyingActivity(a: Activity): QualifyingActivity {
 }
 
 export default function DashboardPage() {
-  const { sync, syncing, checking, hasPending, checkPending, progress, rateLimitWait, error, lastSync, cloudSync } = useSyncContext();
+  const { syncing, checkPending, progress, rateLimitWait, error, lastSync, cloudSync } = useSyncContext();
 
   const activities = useLiveQuery(() => db.activities.toArray(), []);
 
@@ -76,39 +75,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <div className="flex items-center gap-2">
-          <BackupTransferButton />
-          <button
-            onClick={sync}
-            disabled={syncing || checking}
-            className="relative inline-flex items-center gap-2 rounded-md bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-          {hasPending && !syncing && (
-            <span className="absolute -top-1 -right-1 flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-300 opacity-75" />
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-400" />
-            </span>
-          )}
-          {syncing ? (
-              <>
-                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                {progress ? `Fetched ${progress.fetched} activities…` : rateLimitWait ? `Rate limited — retrying…` : "Connecting..."}
-              </>
-            ) : checking ? (
-              "Checking Strava…"
-            ) : hasPending ? (
-              "New activities — Sync now"
-            ) : (
-              "Sync with Strava"
-            )}
-          </button>
-        </div>
-      </div>
+      <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
 
       <UnconfirmedRidesNotice count={unconfirmedCount} />
 
@@ -143,11 +110,11 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {syncing && progress && (
+      {syncing && (
         <div className="w-full rounded-full bg-gray-200 h-2.5 overflow-hidden">
           <div
-            className="bg-orange-500 h-2.5 rounded-full animate-pulse"
-            style={{ width: "100%" }}
+            className="bg-orange-500 h-2.5 rounded-full transition-all duration-300"
+            style={{ width: progress ? `${Math.min((progress.fetched / Math.max(progress.fetched + 50, 100)) * 100, 95)}%` : "15%" }}
           />
         </div>
       )}
@@ -190,7 +157,7 @@ export default function DashboardPage() {
             {Math.round(totalKmThisYear).toLocaleString()}
           </p>
           <p className="text-sm text-orange-600">
-            {Math.round(audaxThisYear.reduce((s, a) => s + a.distance, 0)).toLocaleString()} km {audaxThisYear.length === 1 ? "audax" : "audaxes"}
+            {Math.round(audaxThisYear.reduce((s, a) => s + a.distance, 0)).toLocaleString()} km · {audaxThisYear.length} {audaxThisYear.length === 1 ? "audax" : "audaxes"}
           </p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
@@ -230,46 +197,6 @@ export default function DashboardPage() {
           </div>
         ) : null;
       })()}
-
-      {/* RRTY card */}
-      <div className="bg-white rounded-lg shadow p-6 flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">RRTY — Randonneur Round The Year</h2>
-          {rrtyStatus.qualified ? (
-            <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-0.5 text-sm font-medium text-green-800">
-              Qualified
-            </span>
-          ) : (
-            <span className="inline-flex items-center rounded-full bg-yellow-100 px-3 py-0.5 text-sm font-medium text-yellow-800">
-              In Progress
-            </span>
-          )}
-        </div>
-        <p className="text-sm text-gray-500">
-          One 200 km+ brevet every month for 12 consecutive months (Audax Ireland award).
-        </p>
-        <div className="space-y-1">
-          <div className="flex justify-between text-sm text-gray-600">
-            <span>
-              <span className="font-semibold">{rrtyStatus.currentStreakLength}</span> consecutive month{rrtyStatus.currentStreakLength !== 1 ? "s" : ""}
-            </span>
-            {rrtyStatus.bestStreakMonths.length > 0 && (
-              <span className="text-gray-400 text-xs">
-                best ever: {rrtyStatus.bestStreakLength}
-              </span>
-            )}
-          </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
-            <div
-              className={`h-2.5 rounded-full ${rrtyStatus.qualified ? "bg-green-500" : "bg-orange-500"}`}
-              style={{ width: `${Math.min((rrtyStatus.currentStreakLength / 12) * 100, 100)}%` }}
-            />
-          </div>
-        </div>
-        <Link to="/rrty" className="text-sm text-orange-600 hover:text-orange-700 font-medium mt-auto">
-          View details &rarr;
-        </Link>
-      </div>
 
       {/* Qualification cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -343,11 +270,52 @@ export default function DashboardPage() {
         />
       </div>
 
-      {lastSync && (
-        <div className="flex items-center justify-center gap-4">
-          <p className="text-xs text-gray-400">
-            Last synced: {new Date(lastSync).toLocaleString()}
-          </p>
+      {/* RRTY card */}
+      <div className="bg-white rounded-lg shadow p-6 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">RRTY — Randonneur Round The Year</h2>
+          {rrtyStatus.qualified ? (
+            <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-0.5 text-sm font-medium text-green-800">
+              Qualified
+            </span>
+          ) : (
+            <span className="inline-flex items-center rounded-full bg-yellow-100 px-3 py-0.5 text-sm font-medium text-yellow-800">
+              In Progress
+            </span>
+          )}
+        </div>
+        <p className="text-sm text-gray-500">
+          One 200 km+ brevet every month for 12 consecutive months (Audax Ireland award).
+        </p>
+        <div className="space-y-1">
+          <div className="flex justify-between text-sm text-gray-600">
+            <span>
+              <span className="font-semibold">{rrtyStatus.currentStreakLength}</span> consecutive month{rrtyStatus.currentStreakLength !== 1 ? "s" : ""}
+            </span>
+            {rrtyStatus.bestStreakMonths.length > 0 && (
+              <span className="text-gray-400 text-xs">
+                best ever: {rrtyStatus.bestStreakLength}
+              </span>
+            )}
+          </div>
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
+            <div
+              className={`h-2.5 rounded-full ${rrtyStatus.qualified ? "bg-green-500" : "bg-orange-500"}`}
+              style={{ width: `${Math.min((rrtyStatus.currentStreakLength / 12) * 100, 100)}%` }}
+            />
+          </div>
+        </div>
+        <Link to="/rrty" className="text-sm text-orange-600 hover:text-orange-700 font-medium mt-auto">
+          View details &rarr;
+        </Link>
+      </div>
+
+      <details className="rounded-lg border border-red-200">
+        <summary className="cursor-pointer px-4 py-2 text-xs font-medium text-red-500 hover:text-red-700">
+          Danger zone
+        </summary>
+        <div className="border-t border-red-200 p-4 space-y-2">
+          <p className="text-xs text-red-600">Clear all local activity data. You will need to re-sync from Strava.</p>
           <button
             onClick={async () => {
               if (window.confirm("Clear all activity data? You'll need to re-sync from Strava.")) {
@@ -356,12 +324,12 @@ export default function DashboardPage() {
                 window.location.reload();
               }
             }}
-            className="text-xs text-red-400 hover:text-red-600"
+            className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
           >
-            Clear data
+            Clear all data
           </button>
         </div>
-      )}
+      </details>
     </div>
   );
 }

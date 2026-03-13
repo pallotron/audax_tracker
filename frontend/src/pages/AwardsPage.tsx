@@ -58,19 +58,19 @@ function toAwards(a: Activity): AwardsActivity {
 
 function TrophyBadge({ label, activities }: { label: string | number; activities?: AwardsActivity[] }) {
   const badge = (
-    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-      🏆 {label}
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">
+      <span className="text-lg leading-none">🏆</span> {label}
     </span>
   );
 
   if (!activities || activities.length === 0) return badge;
 
   return (
-    <details className="group relative inline-block">
-      <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden hover:opacity-80">
-        {badge}
-      </summary>
-      <div className="absolute left-0 z-10 mt-1 w-64 rounded-md border border-gray-200 bg-white p-2 shadow-xl">
+    <span className="group relative inline-block">
+      <span className="inline-flex cursor-default items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800 hover:opacity-80">
+        <span className="text-lg leading-none">🏆</span> {label}
+      </span>
+      <div className="absolute left-0 z-10 mt-1 w-64 rounded-md border border-gray-200 bg-white p-2 shadow-xl opacity-0 transition-opacity group-hover:opacity-100">
         <ul className="flex flex-col gap-1">
           {activities.map((a) => (
             <li key={a.stravaId} className="truncate text-xs">
@@ -84,7 +84,7 @@ function TrophyBadge({ label, activities }: { label: string | number; activities
           ))}
         </ul>
       </div>
-    </details>
+    </span>
   );
 }
 
@@ -144,8 +144,8 @@ export default function AwardsPage() {
 
   return (
     <div className="space-y-8">
-      <UnconfirmedRidesNotice count={unconfirmedCount} />
       <h1 className="text-2xl font-bold text-gray-900">Awards</h1>
+      <UnconfirmedRidesNotice count={unconfirmedCount} />
 
       {/* ── ACP Awards ─────────────────────────────────────────────── */}
       <section className="space-y-3">
@@ -199,6 +199,7 @@ export default function AwardsPage() {
       <section className="space-y-3">
         <SectionHeading>Annual Awards</SectionHeading>
 
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <AwardRow
           label="Super Randonneur"
           description={`Complete a BRM 200, 300, 400, and 600 in the same audax season (Nov–Oct). Total completed: ${[...superRandonneur.values()].filter(s => s.met).length}`}
@@ -298,12 +299,14 @@ export default function AwardsPage() {
             ))
           )}
         </AwardRow>
+        </div>
       </section>
 
       {/* ── Lifetime Awards ─────────────────────────────────────────── */}
       <section className="space-y-3">
         <SectionHeading>Lifetime Awards</SectionHeading>
 
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {/* 4 Nations SR */}
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="mb-1 flex items-center justify-between">
@@ -324,7 +327,7 @@ export default function AwardsPage() {
             Complete BRM 200+300+400+600 with each distance starting and finishing in a
             different nation (England, Ireland, Scotland, Wales). Counts from 2024–25 season onward.
           </p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-4 gap-2">
             {(["BRM200", "BRM300", "BRM400", "BRM600"] as const).map((dist) => {
               const assignment = fourNations.assignments.find((a) => a.distance === dist);
               return (
@@ -379,7 +382,7 @@ export default function AwardsPage() {
           <p className="mb-3 text-xs text-gray-500">
             Complete BRM 200+300+400+600 with each distance in a different country. No time restriction.
           </p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-4 gap-2">
             {(["BRM200", "BRM300", "BRM400", "BRM600"] as const).map((dist) => {
               const assignment = isr.assignments.find((a) => a.distance === dist);
               return (
@@ -460,6 +463,7 @@ export default function AwardsPage() {
               ))}
             </ul>
           )}
+        </div>
         </div>
       </section>
     </div>

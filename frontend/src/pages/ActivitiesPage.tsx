@@ -7,6 +7,7 @@ import { useSyncContext } from "../context/SyncContext";
 import { ActivityRow } from "../components/ActivityRow";
 import { BulkActionBar } from "../components/BulkActionBar";
 import { ClassificationLegend } from "../components/EventTypeBadge";
+import { formatDuration } from "../utils/formatDuration";
 
 const AUDAX_EVENT_TYPES_ROW1: NonNullable<EventType>[] = [
   "BRM200",
@@ -63,7 +64,7 @@ function getSortValue(a: Activity, key: SortKey): string | number {
 }
 
 export default function ActivitiesPage() {
-  const { sync, syncing, progress, error } = useSyncContext();
+  const { syncing, progress, error } = useSyncContext();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // All filter state lives in the URL
@@ -85,6 +86,7 @@ export default function ActivitiesPage() {
   const [page, setPage] = useState(0);
   const pageSize = 50;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showTypeFilter, setShowTypeFilter] = useState(() => selectedTypes.size > 0);
 
   const resetPage = () => setPage(0);
 
@@ -225,6 +227,24 @@ export default function ActivitiesPage() {
 
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
+  const selectionSummary = useMemo(() => {
+    if (filtered.length === 0) return null;
+    const source = selectedIds.size > 0
+      ? filtered.filter((a) => selectedIds.has(a.stravaId))
+      : filtered;
+    const totalDistance = source.reduce((sum, a) => sum + a.distance, 0);
+    const totalElevation = source.reduce((sum, a) => sum + a.elevationGain, 0);
+    const audaxCount = source.filter((a) => a.eventType !== null).length;
+    const totalMoving = source.reduce((sum, a) => sum + a.movingTime, 0);
+    const totalElapsed = source.reduce((sum, a) => sum + a.elapsedTime, 0);
+    const byCountry = new Map<string, number>();
+    for (const a of source) {
+      const key = a.startCountry ?? "Unknown";
+      byCountry.set(key, (byCountry.get(key) ?? 0) + 1);
+    }
+    return { count: source.length, isSelection: selectedIds.size > 0, totalDistance, totalElevation, audaxCount, totalMoving, totalElapsed, byCountry };
+  }, [filtered, selectedIds]);
+
   const handleBulkConfirm = useCallback(async () => {
     await bulkConfirm(Array.from(selectedIds));
     setSelectedIds(new Set());
@@ -255,30 +275,14 @@ export default function ActivitiesPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Activities</h1>
-        <button
-          onClick={sync}
-          disabled={syncing}
-          className="inline-flex items-center gap-2 rounded-md bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {syncing ? (
-            <>
-              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              {progress ? `Fetched ${progress.fetched}…` : "Connecting..."}
-            </>
-          ) : (
-            "Sync with Strava"
-          )}
-        </button>
-      </div>
+      <h1 className="text-2xl font-bold text-gray-900">Activities</h1>
 
-      {syncing && progress && (
+      {syncing && (
         <div className="w-full rounded-full bg-gray-200 h-2.5 overflow-hidden">
-          <div className="bg-orange-500 h-2.5 rounded-full animate-pulse" style={{ width: "100%" }} />
+          <div
+            className="bg-orange-500 h-2.5 rounded-full transition-all duration-300"
+            style={{ width: progress ? `${Math.min((progress.fetched / Math.max(progress.fetched + 50, 100)) * 100, 95)}%` : "15%" }}
+          />
         </div>
       )}
 
@@ -344,43 +348,96 @@ export default function ActivitiesPage() {
         </div>
 
         {/* Type chips */}
-        <div className="flex items-start gap-1.5">
-          <span className="shrink-0 text-sm font-medium text-gray-700 pt-0.5">Filter types:</span>
-          <div className="flex flex-wrap gap-1.5">
-            {selectedTypes.size > 0 && (
-              <button
-                onClick={clearTypeFilter}
-                className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-200 text-gray-600 hover:bg-gray-300"
-              >
-                Clear
-              </button>
-            )}
-            <button
-              onClick={() => toggleType("__null__")}
-              className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
-                selectedTypes.has("__null__")
-                  ? "bg-gray-600 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              (unclassified)
-            </button>
-            {[...AUDAX_EVENT_TYPES_ROW1, ...AUDAX_EVENT_TYPES_ROW2].map((t) => (
-              <button
-                key={t}
-                onClick={() => toggleType(t)}
-                className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
-                  selectedTypes.has(t)
-                    ? "bg-orange-500 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
+        <div className="space-y-1.5">
+          <button
+            onClick={() => setShowTypeFilter((v) => !v)}
+            className="text-sm font-medium text-gray-700 hover:text-gray-900"
+          >
+            Filter by type{selectedTypes.size > 0 ? ` (${selectedTypes.size} active)` : ""} {showTypeFilter ? "▲" : "▼"}
+          </button>
+          {showTypeFilter && (
+            <div className="flex items-start gap-1.5">
+              <div className="flex flex-wrap gap-1.5">
+                {selectedTypes.size > 0 && (
+                  <button
+                    onClick={clearTypeFilter}
+                    className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-200 text-gray-600 hover:bg-gray-300"
+                  >
+                    Clear
+                  </button>
+                )}
+                <button
+                  onClick={() => toggleType("__null__")}
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                    selectedTypes.has("__null__")
+                      ? "bg-gray-600 text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  (unclassified)
+                </button>
+                {[...AUDAX_EVENT_TYPES_ROW1, ...AUDAX_EVENT_TYPES_ROW2].map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => toggleType(t)}
+                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                      selectedTypes.has(t)
+                        ? "bg-orange-500 text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Selection summary */}
+      {selectionSummary && (
+        <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-yellow-900">
+              {selectionSummary.isSelection ? "Selection" : "Filter"} summary — {selectionSummary.count} ride{selectionSummary.count !== 1 ? "s" : ""}
+            </h3>
+            <span className="text-xs text-yellow-700">{selectionSummary.audaxCount} audax</span>
+          </div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-yellow-800 sm:grid-cols-4">
+            <div>
+              <span className="font-medium">Distance</span>
+              <div className="text-sm font-semibold text-yellow-900">{Math.round(selectionSummary.totalDistance).toLocaleString()} km</div>
+            </div>
+            <div>
+              <span className="font-medium">Elevation</span>
+              <div className="text-sm font-semibold text-yellow-900">{Math.round(selectionSummary.totalElevation).toLocaleString()} m</div>
+            </div>
+            <div>
+              <span className="font-medium">Moving time</span>
+              <div className="text-sm font-semibold text-yellow-900">{formatDuration(selectionSummary.totalMoving)}</div>
+            </div>
+            <div>
+              <span className="font-medium">Elapsed time</span>
+              <div className="text-sm font-semibold text-yellow-900">{formatDuration(selectionSummary.totalElapsed)}</div>
+            </div>
+          </div>
+          {selectionSummary.byCountry.size > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {[...selectionSummary.byCountry.entries()]
+                .sort((a, b) => b[1] - a[1])
+                .map(([country, count]) => (
+                  <span
+                    key={country}
+                    className="rounded-full bg-yellow-200 px-2 py-0.5 text-xs text-yellow-800"
+                  >
+                    {country} × {count}
+                  </span>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Table */}
       {activities === undefined ? (
