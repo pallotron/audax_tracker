@@ -1,4 +1,4 @@
-<p align="center">
+<p align="left">
   <img src="frontend/src/assets/app-icon.png" alt="Audax Tracker" width="120" />
 </p>
 
@@ -9,12 +9,14 @@ A web app that pulls cycling activities from Strava, classifies qualifying audax
 ## Features
 
 ### Strava Integration
+
 - **OAuth sync** — login with Strava, bulk-import full ride history, incremental sync on return visits
 - **Auto-classification** — detects BRM brevets, PBP, Flèche, SR600, and other event types from ride name/description using regex patterns or a distance heuristic
 - **Manual override** — reclassify any activity and attach a homologation number via the Activities page
 - **DNF detection** — auto-detects Did Not Finish from activity names, with manual override
 
 ### Annual Awards
+
 Tracked per season (November–October):
 
 - **Super Randonneur** — complete a 200, 300, 400, and 600 km brevet in the same season; SR600 counts as the 600
@@ -24,11 +26,13 @@ Tracked per season (November–October):
 - **Easter Flèche** — complete a Flèche event during the Easter weekend (Good Friday to Easter Monday)
 
 ### Lifetime Awards
+
 - **4 Nations Super Randonneur** — complete a 200, 300, 400, and 600 km brevet each in a different nation: Ireland, England, Scotland, and Wales
 - **International Super Randonneur (ISR)** — complete a 200, 300, 400, and 600 km brevet each in a different country
 - **International rides log** — a chronological log of qualifying rides held outside Ireland
 
 ### Summary & Tracking
+
 - **Yearly summary** — per-year totals and a table of all qualifying events
 - **Offline-first** — all data cached locally in IndexedDB (Dexie.js); no server-side database
 
