@@ -8,6 +8,9 @@ interface ActivityRowProps {
   activity: Activity;
   selected: boolean;
   onToggle: (stravaId: string) => void;
+  onRefresh: () => Promise<void>;
+  refreshing: boolean;
+  refreshError: string | null;
 }
 
 const EVENT_TYPE_OPTIONS: EventType[] = [
@@ -107,7 +110,7 @@ function AwardsStatusIcon({ activity, onExclude, onInclude, onConfirm }: AwardsS
   );
 }
 
-export function ActivityRow({ activity, selected, onToggle }: ActivityRowProps) {
+export function ActivityRow({ activity, selected, onToggle, onRefresh, refreshing, refreshError }: ActivityRowProps) {
   const [editing, setEditing] = useState(false);
   const [eventType, setEventType] = useState<EventType>(activity.eventType);
   const [homologation, setHomologation] = useState(
@@ -262,12 +265,26 @@ export function ActivityRow({ activity, selected, onToggle }: ActivityRowProps) 
             </button>
           </span>
         ) : (
-          <button
-            onClick={() => setEditing(true)}
-            className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-200"
-          >
-            Edit
-          </button>
+          <span className="inline-flex items-center gap-1">
+            <button
+              onClick={onRefresh}
+              disabled={refreshing}
+              title={refreshError ?? "Refresh from Strava"}
+              className={`rounded px-2 py-0.5 text-xs ${
+                refreshError
+                  ? "bg-red-100 text-red-600 hover:bg-red-200"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              } disabled:opacity-50`}
+            >
+              {refreshing ? "…" : "↺"}
+            </button>
+            <button
+              onClick={() => setEditing(true)}
+              className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-200"
+            >
+              Edit
+            </button>
+          </span>
         )}
       </td>
     </tr>
