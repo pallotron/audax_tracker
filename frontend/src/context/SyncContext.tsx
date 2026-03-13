@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useState } from "react";
 import { useAuth } from "./AuthContext";
-import { fetchAllActivities, hasNewActivities } from "../strava/client";
+import { fetchAllActivities, fetchActivity, hasNewActivities } from "../strava/client";
 import { db, type Activity } from "../db/database";
 import { geocodeActivities } from "../geo/geocoder";
 import { useCloudSync, type CloudSyncHook } from "../cloud/useCloudSync";
@@ -12,9 +12,12 @@ const CHECK_COOLDOWN_MS = 60_000;
 interface SyncContextValue {
   sync: () => Promise<void>;
   checkPending: () => Promise<void>;
+  refreshActivity: (stravaId: string) => Promise<void>;
   syncing: boolean;
   checking: boolean;
   hasPending: boolean;
+  refreshing: Set<string>;
+  refreshErrors: Map<string, string>;
   progress: { fetched: number; total: number } | null;
   geocoding: { done: number; total: number } | null;
   rateLimitWait: number | null;
@@ -74,6 +77,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     () => localStorage.getItem(LAST_SYNC_KEY)
   );
   const [geocoding, setGeocoding] = useState<{ done: number; total: number } | null>(null);
+  const [refreshing, setRefreshing] = useState<Set<string>>(new Set());
+  const [refreshErrors, setRefreshErrors] = useState<Map<string, string>>(new Map());
   const cloudSync = useCloudSync();
 
   const sync = useCallback(async () => {
@@ -97,30 +102,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       await db.transaction("rw", db.activities, async () => {
         for (const activity of activities) {
           const existing = await db.activities.get(activity.stravaId);
-          if (existing?.manualOverride) {
-            await db.activities.put({
-              ...activity,
-              eventType: existing.eventType,
-              classificationSource: existing.classificationSource,
-              manualOverride: true,
-              homologationNumber: existing.homologationNumber,
-              dnf: existing.dnf,
-              startCountry: existing.startCountry,
-              startRegion: existing.startRegion,
-              endCountry: existing.endCountry,
-              endRegion: existing.endRegion,
-              isNotableInternational: existing.isNotableInternational,
-            });
-          } else {
-            await db.activities.put({
-              ...activity,
-              startCountry: existing?.startCountry ?? null,
-              startRegion: existing?.startRegion ?? null,
-              endCountry: existing?.endCountry ?? null,
-              endRegion: existing?.endRegion ?? null,
-              isNotableInternational: existing?.isNotableInternational ?? false,
-            });
-          }
+          await db.activities.put(applyActivityUpsert(activity, existing));
         }
       });
 
@@ -171,9 +153,35 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     }
   }, [getAccessToken, lastSync]);
 
+  const refreshActivity = useCallback(async (stravaId: string) => {
+    setRefreshing((prev) => new Set(prev).add(stravaId));
+    setRefreshErrors((prev) => {
+      const next = new Map(prev);
+      next.delete(stravaId);
+      return next;
+    });
+    try {
+      const token = await getAccessToken();
+      const activity = await fetchActivity(stravaId, token);
+      await db.transaction("rw", db.activities, async () => {
+        const existing = await db.activities.get(stravaId);
+        await db.activities.put(applyActivityUpsert(activity, existing));
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Refresh failed";
+      setRefreshErrors((prev) => new Map(prev).set(stravaId, message));
+    } finally {
+      setRefreshing((prev) => {
+        const next = new Set(prev);
+        next.delete(stravaId);
+        return next;
+      });
+    }
+  }, [getAccessToken]);
+
   return (
     <SyncContext.Provider
-      value={{ sync, checkPending, syncing, checking, hasPending, progress, geocoding, rateLimitWait, error, lastSync, cloudSync }}
+      value={{ sync, checkPending, refreshActivity, syncing, checking, hasPending, refreshing, refreshErrors, progress, geocoding, rateLimitWait, error, lastSync, cloudSync }}
     >
       {children}
     </SyncContext.Provider>

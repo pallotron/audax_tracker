@@ -88,8 +88,10 @@ describe("applyActivityUpsert", () => {
       manualOverride: true,
       eventType: "BRM600",
       classificationSource: "manual",
+      needsConfirmation: true,
       homologationNumber: "FR-2025-123",
       dnf: true,
+      excludeFromAwards: true,
       startCountry: "Spain",
       isNotableInternational: true,
     });
@@ -98,8 +100,10 @@ describe("applyActivityUpsert", () => {
     expect(result.eventType).toBe("BRM600");
     expect(result.classificationSource).toBe("manual");
     expect(result.manualOverride).toBe(true);
+    expect(result.needsConfirmation).toBe(true);
     expect(result.homologationNumber).toBe("FR-2025-123");
     expect(result.dnf).toBe(true);
+    expect(result.excludeFromAwards).toBe(true);
     expect(result.startCountry).toBe("Spain");
     expect(result.isNotableInternational).toBe(true);
   });
