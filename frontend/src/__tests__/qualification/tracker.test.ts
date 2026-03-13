@@ -3,6 +3,7 @@ import {
   checkAcp5000,
   checkAcp10000,
   checkRrty,
+  computeGapFillingActivities,
   type QualifyingActivity,
 } from "../../qualification/tracker";
 
@@ -23,6 +24,7 @@ function makeActivity(
     manualOverride: false,
     excludeFromAwards: false,
     needsConfirmation: false,
+    homologationNumber: null,
     ...overrides,
   };
 }
@@ -362,5 +364,82 @@ describe("checkAcp10000", () => {
     const result = checkAcp10000(activities);
     expect(result.twoBrmSeries.seriesCount).toBe(2);
     expect(result.twoBrmSeries.met).toBe(true);
+  });
+});
+
+describe("computeGapFillingActivities", () => {
+  const mandatory = [
+    makeActivity({ stravaId: "m1", distance: 2000, homologationNumber: "H001" }),
+    makeActivity({ stravaId: "m2", distance: 1500, homologationNumber: "H002" }),
+  ]; // mandatory total: 3500 km, gap to 5000 = 1500 km
+
+  it("excludes mandatory activities", () => {
+    const window = [
+      ...mandatory,
+      makeActivity({ stravaId: "g1", distance: 600, homologationNumber: "H003", date: "2025-06-01" }),
+    ];
+    const result = computeGapFillingActivities(window, mandatory, 5000);
+    expect(result.map((a) => a.stravaId)).not.toContain("m1");
+    expect(result.map((a) => a.stravaId)).not.toContain("m2");
+    expect(result.map((a) => a.stravaId)).toContain("g1");
+  });
+
+  it("excludes activities with no homologation number", () => {
+    const window = [
+      ...mandatory,
+      makeActivity({ stravaId: "no-hom", distance: 600, homologationNumber: null, date: "2025-06-01" }),
+      makeActivity({ stravaId: "with-hom", distance: 600, homologationNumber: "H010", date: "2025-05-01" }),
+    ];
+    const result = computeGapFillingActivities(window, mandatory, 5000);
+    expect(result.map((a) => a.stravaId)).not.toContain("no-hom");
+    expect(result.map((a) => a.stravaId)).toContain("with-hom");
+  });
+
+  it("takes only as many rides as needed to fill the gap, most recent first", () => {
+    const window = [
+      ...mandatory,
+      makeActivity({ stravaId: "old", distance: 1000, homologationNumber: "H020", date: "2024-01-01" }),
+      makeActivity({ stravaId: "recent", distance: 1000, homologationNumber: "H021", date: "2025-06-01" }),
+      makeActivity({ stravaId: "extra", distance: 1000, homologationNumber: "H022", date: "2023-01-01" }),
+    ];
+    // gap = 1500, recent(1000) + old(1000) fills it in 2 rides; extra should be excluded
+    const result = computeGapFillingActivities(window, mandatory, 5000);
+    expect(result.map((a) => a.stravaId)).toEqual(["recent", "old"]);
+    expect(result.map((a) => a.stravaId)).not.toContain("extra");
+  });
+
+  it("returns empty when mandatory activities already meet the target", () => {
+    const bigMandatory = [
+      makeActivity({ stravaId: "big1", distance: 3000, homologationNumber: "H030" }),
+      makeActivity({ stravaId: "big2", distance: 2500, homologationNumber: "H031" }),
+    ]; // 5500 km >= 5000 km target
+    const window = [
+      ...bigMandatory,
+      makeActivity({ stravaId: "extra", distance: 500, homologationNumber: "H032", date: "2025-01-01" }),
+    ];
+    const result = computeGapFillingActivities(window, bigMandatory, 5000);
+    expect(result).toHaveLength(0);
+  });
+
+  it("distance.matchingActivities in checkAcp5000 excludes rides without homologation", () => {
+    // Mandatory rides are dated 2025-07-01 so they win the "most recent" slot for each distance.
+    // Gap rides are older (2025-01-01 / 2025-02-01) so they are not promoted to mandatory.
+    const base = [
+      makeActivity({ eventType: "BRM200", distance: 200, homologationNumber: "H1", date: "2025-07-01" }),
+      makeActivity({ eventType: "BRM300", distance: 300, homologationNumber: "H2", date: "2025-07-01" }),
+      makeActivity({ eventType: "BRM400", distance: 400, homologationNumber: "H3", date: "2025-07-01" }),
+      makeActivity({ eventType: "BRM600", distance: 600, homologationNumber: "H4", date: "2025-07-01" }),
+      makeActivity({ eventType: "BRM1000", distance: 1000, homologationNumber: "H5", date: "2025-07-01" }),
+      makeActivity({ eventType: "PBP", distance: 1200, homologationNumber: "H6", date: "2025-07-01" }),
+      makeActivity({ eventType: "Fleche", distance: 360, homologationNumber: "H7", date: "2025-07-01" }),
+    ];
+    // Older gap ride with homologation — should appear in distance.matchingActivities
+    const withHom = makeActivity({ eventType: "BRM200", distance: 500, homologationNumber: "H8", date: "2025-02-01" });
+    // Older gap ride without homologation — must NOT appear
+    const noHom = makeActivity({ eventType: "BRM300", distance: 500, homologationNumber: null, date: "2025-01-01" });
+    const result = checkAcp5000([...base, withHom, noHom]);
+    const gapIds = result.distance.matchingActivities.map((a) => a.stravaId);
+    expect(gapIds).toContain(withHom.stravaId);
+    expect(gapIds).not.toContain(noHom.stravaId);
   });
 });

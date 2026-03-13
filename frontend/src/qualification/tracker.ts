@@ -15,6 +15,7 @@ export interface QualifyingActivity {
   manualOverride: boolean;
   excludeFromAwards: boolean;
   needsConfirmation: boolean;
+  homologationNumber: string | null;
 }
 
 export interface Requirement {
@@ -380,10 +381,15 @@ export function checkAcp5000(
       }
     }
   }
+  const mandatoryActivities5000 = [
+    ...brmSeriesActivities,
+    ...(pbpActivity ? [pbpActivity] : []),
+    ...(flecheActivity ? [flecheActivity] : []),
+  ];
   const distance: DistanceRequirement = {
     met: totalKm >= targetKm,
     completedDate: distanceCompletedDate,
-    matchingActivities: windowActivities,
+    matchingActivities: computeGapFillingActivities(windowActivities, mandatoryActivities5000, targetKm),
     currentKm: totalKm,
     targetKm,
     details:
@@ -530,6 +536,36 @@ export function checkRrty(activities: QualifyingActivity[]): RrtyResult {
 const MOUNTAIN_600_ELEVATION = 8000; // meters
 
 /**
+ * Returns the activities that fill the remaining distance gap after mandatory
+ * activities are accounted for. Only activities with a homologation number are
+ * considered. Activities are taken most-recent-first until the gap is filled.
+ */
+export function computeGapFillingActivities(
+  windowActivities: QualifyingActivity[],
+  mandatoryActivities: QualifyingActivity[],
+  targetKm: number,
+): QualifyingActivity[] {
+  const mandatoryIds = new Set<string>();
+  let mandatoryKm = 0;
+  for (const a of mandatoryActivities) {
+    if (!mandatoryIds.has(a.stravaId)) {
+      mandatoryIds.add(a.stravaId);
+      mandatoryKm += a.distance;
+    }
+  }
+  const remainingKm = Math.max(0, targetKm - mandatoryKm);
+  let accKm = 0;
+  return windowActivities
+    .filter((a) => !mandatoryIds.has(a.stravaId) && a.homologationNumber !== null)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .filter((a) => {
+      if (accKm >= remainingKm) return false;
+      accKm += a.distance;
+      return true;
+    });
+}
+
+/**
  * Check qualification status for ACP Randonneur 10000.
  * Requirements: 6-year window, 2x BRM series, PBP, separate RM1200+,
  * mountain 600 (8000m+), Flèche, 10000km total.
@@ -658,10 +694,17 @@ export function checkAcp10000(
       }
     }
   }
+  const mandatoryActivities10000 = [
+    ...twoBrmActivities,
+    ...(pbpActivity ? [pbpActivity] : []),
+    ...(rm1200Activity ? [rm1200Activity] : []),
+    ...(mountain600Activity ? [mountain600Activity] : []),
+    ...(flecheActivity ? [flecheActivity] : []),
+  ];
   const distance: DistanceRequirement = {
     met: totalKm >= targetKm,
     completedDate: distanceCompletedDate,
-    matchingActivities: windowActivities,
+    matchingActivities: computeGapFillingActivities(windowActivities, mandatoryActivities10000, targetKm),
     currentKm: totalKm,
     targetKm,
     details:

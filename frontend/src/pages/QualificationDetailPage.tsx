@@ -32,6 +32,7 @@ function toQualifyingActivities(activities: Activity[]): QualifyingActivity[] {
       manualOverride: a.manualOverride,
       excludeFromAwards: a.excludeFromAwards,
       needsConfirmation: a.needsConfirmation,
+      homologationNumber: a.homologationNumber,
     }));
 }
 
@@ -69,6 +70,9 @@ function RequirementCard({ label, requirement }: RequirementCardProps) {
                 <p className="text-xs font-semibold text-gray-600">{type}</p>
                 {acts.map((a) => (
                   <p key={a.stravaId} className="text-xs text-gray-400 pl-2 border-l-2 border-gray-200">
+                    {a.homologationNumber && (
+                      <span className="font-mono text-gray-500">{a.homologationNumber}{" "}</span>
+                    )}
                     <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 hover:underline">
                       {a.name}
                     </a>
@@ -90,6 +94,9 @@ function RequirementCard({ label, requirement }: RequirementCardProps) {
             <p key={a.stravaId} className="text-xs text-gray-400">
               <span className="font-medium text-gray-500">{a.eventType}</span>
               {" — "}
+              {a.homologationNumber && (
+                <span className="font-mono text-gray-500">{a.homologationNumber}{" "}</span>
+              )}
               <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 hover:underline">
                 {a.name}
               </a>
@@ -213,13 +220,13 @@ export default function QualificationDetailPage() {
       : tableActivities.find((a) => a.eventType === dist);
     if (!match) return null;
     // Use the actual event type as the label so SR600 shows as "SR600" not "BRM600"
-    return { distance: match.eventType as string, name: match.name, date: new Date(match.date), sourceUrl: match.sourceUrl };
-  }).filter(Boolean) as { distance: string; name: string; date: Date; sourceUrl: string }[];
+    return { distance: match.eventType as string, name: match.name, date: new Date(match.date), sourceUrl: match.sourceUrl, homologationNumber: match.homologationNumber };
+  }).filter(Boolean) as { distance: string; name: string; date: Date; sourceUrl: string; homologationNumber: string | null }[];
 
   // For timeline: find the most recent ride for single-event requirements
   const findLatestForType = (eventType: string) => {
     const match = tableActivities.find((a) => a.eventType === eventType);
-    return match ? { name: match.name, date: new Date(match.date), sourceUrl: match.sourceUrl } : null;
+    return match ? { name: match.name, date: new Date(match.date), sourceUrl: match.sourceUrl, homologationNumber: match.homologationNumber } : null;
   };
 
   // Build requirements list
@@ -248,6 +255,8 @@ export default function QualificationDetailPage() {
       { label: "Fleche", requirement: s.fleche },
     );
   }
+
+  requirements.push({ label: `Distance (${targetKm.toLocaleString()} km)`, requirement: status.distance });
 
   return (
     <div className="space-y-6">
@@ -362,7 +371,7 @@ export default function QualificationDetailPage() {
               {/* Timeline line */}
               <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gray-200" />
               <div className="space-y-4">
-                {[...requirements, { label: `Distance (${targetKm} km)`, requirement: status.distance }]
+                {requirements
                   .filter((r) => r.requirement.completedDate)
                   .sort(
                     (a, b) =>
@@ -380,9 +389,10 @@ export default function QualificationDetailPage() {
                           const m = tableActivities.find(
                             (a) => (a.eventType === "BRM600" || a.eventType === "SR600") && a.elevationGain >= 8000,
                           );
-                          return m ? { name: m.name, date: new Date(m.date), sourceUrl: m.sourceUrl } : null;
+                          return m ? { name: m.name, date: new Date(m.date), sourceUrl: m.sourceUrl, homologationNumber: m.homologationNumber } : null;
                         })()
                       : null;
+                    const isDistance = r.label === `Distance (${targetKm.toLocaleString()} km)`;
                     const singleRide = pbpRide ?? flecheRide ?? rm1200Ride ?? mountain600Ride;
 
                     return (
@@ -402,6 +412,9 @@ export default function QualificationDetailPage() {
                             {latestPerBrmDistance.map((d) => (
                               <p key={d.distance} className="text-xs text-gray-400">
                                 {d.distance}:{" "}
+                                {d.homologationNumber && (
+                                  <span className="font-mono text-gray-500">{d.homologationNumber}{" "}</span>
+                                )}
                                 <a href={d.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 hover:underline">
                                   {d.name}
                                 </a>
@@ -412,17 +425,38 @@ export default function QualificationDetailPage() {
                         )}
                         {singleRide && (
                           <p className="ml-28 mt-1 text-xs text-gray-400">
+                            {singleRide.homologationNumber && (
+                              <span className="font-mono text-gray-500">{singleRide.homologationNumber}{" "}</span>
+                            )}
                             <a href={singleRide.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 hover:underline">
                               {singleRide.name}
                             </a>
                             {" "}({formatDate(singleRide.date)})
                           </p>
                         )}
+                        {isDistance && r.requirement.matchingActivities.length > 0 && (
+                          <div className="ml-28 mt-1 space-y-0.5">
+                            {r.requirement.matchingActivities.map((a) => (
+                              <p key={a.stravaId} className="text-xs text-gray-400">
+                                <span className="font-medium text-gray-500">{a.eventType}</span>
+                                {" — "}
+                                {a.homologationNumber && (
+                                  <span className="font-mono text-gray-500">{a.homologationNumber}{" "}</span>
+                                )}
+                                <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 hover:underline">
+                                  {a.name}
+                                </a>
+                                {" "}({formatDate(new Date(a.date))})
+                                {" · "}{Math.round(a.distance)} km
+                              </p>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
                 {/* Pending items */}
-                {[...requirements, { label: `Distance (${targetKm} km)`, requirement: status.distance }]
+                {requirements
                   .filter((r) => !r.requirement.met)
                   .map((r) => (
                     <div key={r.label} className="relative flex items-center gap-3 pl-7">
@@ -440,7 +474,7 @@ export default function QualificationDetailPage() {
       {/* Qualifying events table */}
       <div>
         <h2 className="mb-3 text-lg font-semibold text-gray-900">
-          Qualifying Events
+          Candidate events for qualification
         </h2>
         {tableActivities.length === 0 ? (
           <p className="py-8 text-center text-gray-500">

@@ -31,6 +31,7 @@ function toQualifyingActivity(a: Activity): QualifyingActivity {
     manualOverride: a.manualOverride,
     excludeFromAwards: a.excludeFromAwards,
     needsConfirmation: a.needsConfirmation,
+    homologationNumber: a.homologationNumber,
   };
 }
 
