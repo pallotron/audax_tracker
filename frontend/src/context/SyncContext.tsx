@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useState } from "react";
 import { useAuth } from "./AuthContext";
 import { fetchAllActivities, hasNewActivities } from "../strava/client";
-import { db } from "../db/database";
+import { db, type Activity } from "../db/database";
 import { geocodeActivities } from "../geo/geocoder";
 import { useCloudSync, type CloudSyncHook } from "../cloud/useCloudSync";
 
@@ -29,6 +29,37 @@ export function computeAfterEpoch(lastSync: string | null): number | undefined {
   return lastSync
     ? Math.floor(new Date(lastSync).getTime() / 1000) - 60
     : undefined;
+}
+
+export function applyActivityUpsert(
+  activity: Activity,
+  existing: Activity | undefined
+): Activity {
+  if (existing?.manualOverride) {
+    return {
+      ...activity,
+      eventType: existing.eventType,
+      classificationSource: existing.classificationSource,
+      manualOverride: true,
+      needsConfirmation: existing.needsConfirmation,
+      homologationNumber: existing.homologationNumber,
+      dnf: existing.dnf,
+      excludeFromAwards: existing.excludeFromAwards,
+      startCountry: existing.startCountry,
+      startRegion: existing.startRegion,
+      endCountry: existing.endCountry,
+      endRegion: existing.endRegion,
+      isNotableInternational: existing.isNotableInternational,
+    };
+  }
+  return {
+    ...activity,
+    startCountry: existing?.startCountry ?? null,
+    startRegion: existing?.startRegion ?? null,
+    endCountry: existing?.endCountry ?? null,
+    endRegion: existing?.endRegion ?? null,
+    isNotableInternational: existing?.isNotableInternational ?? false,
+  };
 }
 
 export function SyncProvider({ children }: { children: React.ReactNode }) {
