@@ -138,3 +138,27 @@ export async function fetchAllActivities(
 
   return activities;
 }
+
+export async function fetchActivity(
+  stravaId: string,
+  accessToken: string
+): Promise<Activity> {
+  const url = `${STRAVA_API}/activities/${stravaId}`;
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (response.status === 429) {
+    const retryAfter = parseInt(response.headers.get("Retry-After") ?? "0", 10);
+    const minutes = retryAfter > 0 ? Math.ceil(retryAfter / 60) : 15;
+    throw new Error(
+      `Strava rate limit reached. Try again in ~${minutes} minute${minutes !== 1 ? "s" : ""}.`
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error(`Strava API error: ${response.status}`);
+  }
+
+  return mapStravaActivity(await response.json());
+}

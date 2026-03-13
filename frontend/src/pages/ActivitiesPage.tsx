@@ -64,7 +64,7 @@ function getSortValue(a: Activity, key: SortKey): string | number {
 }
 
 export default function ActivitiesPage() {
-  const { syncing, progress, error } = useSyncContext();
+  const { syncing, progress, error, refreshActivity, refreshing, refreshErrors } = useSyncContext();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // All filter state lives in the URL
@@ -269,6 +269,11 @@ export default function ActivitiesPage() {
     await bulkIncludeInAwards(Array.from(selectedIds));
     setSelectedIds(new Set());
   }, [selectedIds]);
+
+  const handleBulkRefresh = useCallback(async () => {
+    await Promise.allSettled(Array.from(selectedIds).map((id) => refreshActivity(id)));
+    setSelectedIds(new Set());
+  }, [selectedIds, refreshActivity]);
 
   const allFilteredSelected = filtered.length > 0 && filtered.every((a) => selectedIds.has(a.stravaId));
   const someFilteredSelected = filtered.some((a) => selectedIds.has(a.stravaId));
@@ -520,6 +525,9 @@ export default function ActivitiesPage() {
                     activity={a}
                     selected={selectedIds.has(a.stravaId)}
                     onToggle={toggleSelect}
+                    onRefresh={() => refreshActivity(a.stravaId)}
+                    refreshing={refreshing.has(a.stravaId)}
+                    refreshError={refreshErrors.get(a.stravaId) ?? null}
                   />
                 ))}
               </tbody>
@@ -560,6 +568,7 @@ export default function ActivitiesPage() {
         onSetDnf={handleBulkSetDnf}
         onExcludeFromAwards={handleBulkExcludeFromAwards}
         onIncludeInAwards={handleBulkIncludeInAwards}
+        onRefresh={handleBulkRefresh}
         onClear={clearSelection}
       />
     </div>
