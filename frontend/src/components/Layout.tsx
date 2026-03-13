@@ -89,6 +89,14 @@ export default function Layout() {
                       </>
                     ) : checking ? "Checking…" : hasPending ? "Sync now" : "Sync"}
                   </button>
+                  <a
+                    href="https://ko-fi.com/angelofailla"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-[#FF5E5B] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#e54f4c]"
+                  >
+                    ☕ Buy me a coffee
+                  </a>
                   <span className="text-sm text-gray-700">{tokens.athlete?.firstname}</span>
                   <button onClick={logout} className="text-sm text-gray-500 hover:text-gray-700">Logout</button>
                 </div>

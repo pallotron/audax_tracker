@@ -38,6 +38,14 @@ export default function AboutPage() {
         <p className="mt-2 text-sm text-gray-400">
           Open source — fork it and run your own instance.
         </p>
+        <a
+          href="https://ko-fi.com/angelofailla"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-flex items-center gap-2 rounded-lg bg-[#FF5E5B] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#e54f4c]"
+        >
+          ☕ Buy me a coffee
+        </a>
       </div>
 
       <div className="space-y-8">
