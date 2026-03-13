@@ -1,160 +1,40 @@
+<p align="center">
+  <img src="frontend/src/assets/app-icon.png" alt="Audax Tracker" width="120" />
+</p>
+
 # Audax Tracker
 
-A web app that pulls cycling activities from Strava, classifies qualifying audax/randonneuring events, and tracks progress toward ACP awards. Also provides a yearly summary of all audax rides.
+A web app that pulls cycling activities from Strava, classifies qualifying audax/randonneuring events, and tracks progress toward a range of annual and lifetime awards.
 
 ## Features
 
-- **Strava sync** — OAuth login, bulk sync of ride history, incremental sync on return visits
-- **Auto-classification** — detects BRM brevets, PBP, Flèche, and other events by name/description regex or distance heuristic
-- **Manual override** — reclassify any ride and add a homologation number
+### Strava Integration
+- **OAuth sync** — login with Strava, bulk-import full ride history, incremental sync on return visits
+- **Auto-classification** — detects BRM brevets, PBP, Flèche, SR600, and other event types from ride name/description using regex patterns or a distance heuristic
+- **Manual override** — reclassify any activity and attach a homologation number via the Activities page
 - **DNF detection** — auto-detects Did Not Finish from activity names, with manual override
-- **ACP Randonneur 5000 & 10,000 tracking** — checklist of requirements, km progress bar, best qualifying window, expiry warnings
-- **Annual awards** — RRTY (Randonneur Round The Year), Brevet 2000/5000, 4 Provinces of Ireland, Easter Flèche
-- **Lifetime awards** — 4 Nations Super Randonneur, International Super Randonneur (ISR), international rides log
-- **Yearly summary** — per-year totals and qualifying event tables
+
+### Annual Awards
+Tracked per season (November–October):
+
+- **Super Randonneur** — complete a 200, 300, 400, and 600 km brevet in the same season; SR600 counts as the 600
+- **RRTY (Randonneur Round The Year)** — ride at least one qualifying event (≥200 km) every month for 12 consecutive months
+- **Brevet 2000 / 5000** — accumulate 2,000 or 5,000 km from brevet-type rides in a single season
+- **4 Provinces of Ireland** — complete a qualifying ride starting in each of the four provinces (Ulster, Leinster, Munster, Connacht) in the same season
+- **Easter Flèche** — complete a Flèche event during the Easter weekend (Good Friday to Easter Monday)
+
+### Lifetime Awards
+- **4 Nations Super Randonneur** — complete a 200, 300, 400, and 600 km brevet each in a different nation: Ireland, England, Scotland, and Wales
+- **International Super Randonneur (ISR)** — complete a 200, 300, 400, and 600 km brevet each in a different country
+- **International rides log** — a chronological log of qualifying rides held outside Ireland
+
+### Summary & Tracking
+- **Yearly summary** — per-year totals and a table of all qualifying events
 - **Offline-first** — all data cached locally in IndexedDB (Dexie.js); no server-side database
 
-## Architecture
+## Development
 
-```
-Browser (React SPA)
-  ├── Strava OAuth flow
-  ├── Activity sync & classification
-  ├── ACP 5000 / 10,000 tracker
-  └── IndexedDB (Dexie.js) — persistent local cache
-
-Cloudflare Worker  ←  OAuth callback handler + token refresh (keeps client_secret server-side)
-Cloudflare Pages   ←  hosts the static SPA
-Strava API         ←  activity data fetched directly from the browser
-```
-
-### OAuth flow
-
-The worker is the single Strava OAuth callback endpoint for all origins (production and localhost):
-
-1. Frontend builds Strava auth URL with `redirect_uri=<worker>/oauth/callback` and `state=btoa(window.location.origin)`
-2. Strava redirects to the worker with `?code=...&state=<base64-origin>`
-3. Worker decodes origin from `state`, validates it against `ALLOWED_ORIGINS`, exchanges the code, then redirects to `<origin>/callback#tokens=<base64-json>`
-4. Frontend `OAuthCallbackPage` reads tokens from the URL fragment and stores them locally
-
-This means **no local OAuth worker is needed** — local dev points at the production worker.
-
-## Tech Stack
-
-| Component      | Technology                |
-|----------------|---------------------------|
-| Frontend       | React + TypeScript + Vite |
-| Styling        | Tailwind CSS              |
-| Routing        | React Router              |
-| Local storage  | Dexie.js (IndexedDB)      |
-| OAuth server   | Cloudflare Worker         |
-| Hosting        | Cloudflare Pages          |
-
-## Project Structure
-
-```
-audax_tracker/
-├── frontend/          # React SPA
-│   └── src/
-│       ├── classification/  # Activity classifier
-│       ├── qualification/   # ACP 5000/10000 tracker
-│       ├── awards/          # Annual & lifetime awards logic
-│       ├── strava/          # Strava API client & auth
-│       ├── db/              # Dexie database schema & helpers
-│       ├── pages/           # Route-level components
-│       └── components/      # Shared UI components
-└── worker/            # Cloudflare Worker (OAuth token exchange)
-    └── src/index.ts
-```
-
-## Setup
-
-### Prerequisites
-
-- Node.js (check `.tool-versions` or `.mise.toml` for the required version)
-- A [Strava API application](https://www.strava.com/settings/api) (for Client ID and Client Secret)
-- A Cloudflare account (for the Worker and Pages hosting)
-
-### 1. Deploy the Cloudflare Worker
-
-```bash
-cd worker
-npm install
-npx wrangler deploy
-npx wrangler secret put STRAVA_CLIENT_SECRET
-npx wrangler secret put ALLOWED_ORIGINS
-# Enter comma-separated allowed origins, e.g.:
-# https://your-pages-domain.pages.dev,http://localhost:5173
-```
-
-Set `STRAVA_CLIENT_ID` in `worker/wrangler.toml` under `[vars]`.
-
-In your [Strava API settings](https://www.strava.com/settings/api), set **Authorization Callback Domain** to your worker's domain (e.g. `api.audax-tracker.angelofailla.com`).
-
-### 2. Configure the Frontend
-
-Create `frontend/.env.local`:
-
-```env
-VITE_STRAVA_CLIENT_ID=your_strava_client_id
-VITE_OAUTH_WORKER_URL=https://your-worker.your-account.workers.dev
-VITE_OAUTH_CALLBACK_URL=https://your-worker.your-account.workers.dev/oauth/callback
-```
-
-### 3. Run locally
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-The full Strava OAuth flow works in local dev — the browser is redirected to the production worker, which exchanges the code and redirects back to `http://localhost:5173/callback` with tokens in the URL fragment. No local worker is needed as long as `http://localhost:5173` is in the worker's `ALLOWED_ORIGINS` secret.
-
-#### Testing Worker changes locally
-
-To test Worker changes (e.g. new endpoints) before deploying, run the Worker locally in remote mode so it connects to the real Cloudflare KV namespace:
-
-```bash
-cd worker
-npx wrangler dev --remote --var ALLOWED_ORIGINS="http://localhost:5173"
-# Worker starts at http://localhost:8787
-```
-
-Then point the frontend at it by editing `frontend/.env.local`:
-
-```env
-VITE_OAUTH_WORKER_URL=http://localhost:8787
-VITE_OAUTH_CALLBACK_URL=http://localhost:8787/oauth/callback
-```
-
-Run the frontend as normal (`npm run dev` in `frontend/`). Remember to revert `.env.local` to the production URLs before merging.
-
-> **Note:** `wrangler dev --remote` uses the **preview** KV namespace (`preview_id` in `wrangler.toml`), so test data won't affect production KV.
-
-### 4. Deploy to Cloudflare Pages
-
-Deployments are handled automatically via GitHub Actions on push to `main`. The workflow deploys the worker and builds + deploys the frontend.
-
-Set these secrets in your GitHub repository settings:
-
-| Secret | Description |
-|--------|-------------|
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with Workers and Pages permissions |
-| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID |
-| `VITE_STRAVA_CLIENT_ID` | Strava app client ID |
-| `VITE_OAUTH_WORKER_URL` | Worker base URL (e.g. `https://api.audax-tracker.angelofailla.com`) |
-| `VITE_OAUTH_CALLBACK_URL` | Worker callback URL (e.g. `https://api.audax-tracker.angelofailla.com/oauth/callback`) |
-
-## Geographic Notes
-
-### Northern Ireland
-
-Rides in Northern Ireland are geocoded by OpenStreetMap/Nominatim as `United Kingdom`, but for all award tracking purposes the app treats the entire island of Ireland as a single entity called "Ireland". Concretely:
-
-- A ride starting and/or ending in Northern Ireland counts as **Ireland** (province: Ulster) for the 4 Provinces award and the 4 Nations SR.
-- Northern Ireland rides do **not** appear in the international rides log.
-- Any rides already stored with `country = United Kingdom / region = Northern Ireland` are automatically re-geocoded to `Ireland / Ulster` on the next Strava sync.
+For architecture, tech stack, project structure, local setup, and deployment instructions, see [docs/development.md](docs/development.md).
 
 ## Classification Logic
 
@@ -164,26 +44,10 @@ Activities are classified in order:
 2. **Distance heuristic** — rides in qualifying distance ranges flagged as candidates (e.g. 195–210 km → BRM200)
 3. **Manual override** — user can reclassify any ride and add a homologation number via the Activities page
 
-## ACP Qualification Rules
+### Northern Ireland
 
-### Randonneur 5000 (4-year window)
+Rides in Northern Ireland are geocoded by OpenStreetMap/Nominatim as `United Kingdom`, but for all award tracking purposes the app treats the entire island of Ireland as a single entity called "Ireland". Concretely:
 
-| Requirement      | Rule                                            |
-|------------------|-------------------------------------------------|
-| Full BRM series  | 200 + 300 + 400 + 600 + 1000 km (all required) |
-| PBP              | 1× Paris-Brest-Paris                            |
-| Flèche           | 1× Flèche Vélocio or Flèche Nationale           |
-| Total distance   | ≥ 5,000 km from qualifying events               |
-| Time window      | 4 years from first qualifying event             |
-
-### Randonneur 10,000 (6-year window)
-
-| Requirement       | Rule                                                  |
-|-------------------|-------------------------------------------------------|
-| 2× Full BRM series| Two complete 200+300+400+600+1000 km sets             |
-| PBP               | 1× Paris-Brest-Paris                                  |
-| RM 1200+          | 1× additional 1200+ km event (not PBP)                |
-| Mountain 600      | 1× BRM 600 km with ≥ 8,000 m elevation gain           |
-| Flèche            | 1× Flèche Vélocio or Flèche Nationale                 |
-| Total distance    | ≥ 10,000 km from qualifying events                    |
-| Time window       | 6 years from first qualifying event                   |
+- A ride starting and/or ending in Northern Ireland counts as **Ireland** (province: Ulster) for the 4 Provinces award and the 4 Nations SR.
+- Northern Ireland rides do **not** appear in the international rides log.
+- Any rides already stored with `country = United Kingdom / region = Northern Ireland` are automatically re-geocoded to `Ireland / Ulster` on the next Strava sync.

@@ -1,0 +1,133 @@
+# Development Guide
+
+## Architecture
+
+```
+Browser (React SPA)
+  ├── Strava OAuth flow
+  ├── Activity sync & classification
+  ├── Awards tracker (annual & lifetime)
+  └── IndexedDB (Dexie.js) — persistent local cache
+
+Cloudflare Worker  ←  OAuth callback handler + token refresh (keeps client_secret server-side)
+Cloudflare Pages   ←  hosts the static SPA
+Strava API         ←  activity data fetched directly from the browser
+```
+
+### OAuth flow
+
+The worker is the single Strava OAuth callback endpoint for all origins (production and localhost):
+
+1. Frontend builds Strava auth URL with `redirect_uri=<worker>/oauth/callback` and `state=btoa(window.location.origin)`
+2. Strava redirects to the worker with `?code=...&state=<base64-origin>`
+3. Worker decodes origin from `state`, validates it against `ALLOWED_ORIGINS`, exchanges the code, then redirects to `<origin>/callback#tokens=<base64-json>`
+4. Frontend `OAuthCallbackPage` reads tokens from the URL fragment and stores them locally
+
+This means **no local OAuth worker is needed** — local dev points at the production worker.
+
+## Tech Stack
+
+| Component      | Technology                |
+|----------------|---------------------------|
+| Frontend       | React + TypeScript + Vite |
+| Styling        | Tailwind CSS              |
+| Routing        | React Router              |
+| Local storage  | Dexie.js (IndexedDB)      |
+| OAuth server   | Cloudflare Worker         |
+| Hosting        | Cloudflare Pages          |
+
+## Project Structure
+
+```
+audax_tracker/
+├── frontend/          # React SPA
+│   └── src/
+│       ├── classification/  # Activity classifier
+│       ├── qualification/   # Award qualification logic
+│       ├── awards/          # Annual & lifetime awards logic
+│       ├── strava/          # Strava API client & auth
+│       ├── db/              # Dexie database schema & helpers
+│       ├── pages/           # Route-level components
+│       └── components/      # Shared UI components
+└── worker/            # Cloudflare Worker (OAuth token exchange)
+    └── src/index.ts
+```
+
+## Setup
+
+### Prerequisites
+
+- Node.js (check `.tool-versions` or `.mise.toml` for the required version)
+- A [Strava API application](https://www.strava.com/settings/api) (for Client ID and Client Secret)
+- A Cloudflare account (for the Worker and Pages hosting)
+
+### 1. Deploy the Cloudflare Worker
+
+```bash
+cd worker
+npm install
+npx wrangler deploy
+npx wrangler secret put STRAVA_CLIENT_SECRET
+npx wrangler secret put ALLOWED_ORIGINS
+# Enter comma-separated allowed origins, e.g.:
+# https://your-pages-domain.pages.dev,http://localhost:5173
+```
+
+Set `STRAVA_CLIENT_ID` in `worker/wrangler.toml` under `[vars]`.
+
+In your [Strava API settings](https://www.strava.com/settings/api), set **Authorization Callback Domain** to your worker's domain (e.g. `api.audax-tracker.angelofailla.com`).
+
+### 2. Configure the Frontend
+
+Create `frontend/.env.local`:
+
+```env
+VITE_STRAVA_CLIENT_ID=your_strava_client_id
+VITE_OAUTH_WORKER_URL=https://your-worker.your-account.workers.dev
+VITE_OAUTH_CALLBACK_URL=https://your-worker.your-account.workers.dev/oauth/callback
+```
+
+### 3. Run locally
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The full Strava OAuth flow works in local dev — the browser is redirected to the production worker, which exchanges the code and redirects back to `http://localhost:5173/callback` with tokens in the URL fragment. No local worker is needed as long as `http://localhost:5173` is in the worker's `ALLOWED_ORIGINS` secret.
+
+#### Testing Worker changes locally
+
+To test Worker changes (e.g. new endpoints) before deploying, run the Worker locally in remote mode so it connects to the real Cloudflare KV namespace:
+
+```bash
+cd worker
+npx wrangler dev --remote --var ALLOWED_ORIGINS="http://localhost:5173"
+# Worker starts at http://localhost:8787
+```
+
+Then point the frontend at it by editing `frontend/.env.local`:
+
+```env
+VITE_OAUTH_WORKER_URL=http://localhost:8787
+VITE_OAUTH_CALLBACK_URL=http://localhost:8787/oauth/callback
+```
+
+Run the frontend as normal (`npm run dev` in `frontend/`). Remember to revert `.env.local` to the production URLs before merging.
+
+> **Note:** `wrangler dev --remote` uses the **preview** KV namespace (`preview_id` in `wrangler.toml`), so test data won't affect production KV.
+
+### 4. Deploy to Cloudflare Pages
+
+Deployments are handled automatically via GitHub Actions on push to `main`. The workflow deploys the worker and builds + deploys the frontend.
+
+Set these secrets in your GitHub repository settings:
+
+| Secret | Description |
+|--------|-------------|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with Workers and Pages permissions |
+| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID |
+| `VITE_STRAVA_CLIENT_ID` | Strava app client ID |
+| `VITE_OAUTH_WORKER_URL` | Worker base URL (e.g. `https://api.audax-tracker.angelofailla.com`) |
+| `VITE_OAUTH_CALLBACK_URL` | Worker callback URL (e.g. `https://api.audax-tracker.angelofailla.com/oauth/callback`) |
