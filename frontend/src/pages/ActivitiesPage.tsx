@@ -402,29 +402,29 @@ export default function ActivitiesPage() {
 
       {/* Selection summary */}
       {selectionSummary && (
-        <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4">
+        <div className="rounded-lg border border-orange-200 bg-orange-50 p-4">
           <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-yellow-900">
+            <h3 className="text-sm font-semibold text-orange-900">
               {selectionSummary.isSelection ? "Selection" : "Filter"} summary — {selectionSummary.count} ride{selectionSummary.count !== 1 ? "s" : ""}
             </h3>
-            <span className="text-xs text-yellow-700">{selectionSummary.audaxCount} audax</span>
+            <span className="text-xs text-orange-700">{selectionSummary.audaxCount} audax</span>
           </div>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-yellow-800 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-orange-800 sm:grid-cols-4">
             <div>
               <span className="font-medium">Distance</span>
-              <div className="text-sm font-semibold text-yellow-900">{Math.round(selectionSummary.totalDistance).toLocaleString()} km</div>
+              <div className="text-sm font-semibold text-orange-900">{Math.round(selectionSummary.totalDistance).toLocaleString()} km</div>
             </div>
             <div>
               <span className="font-medium">Elevation</span>
-              <div className="text-sm font-semibold text-yellow-900">{Math.round(selectionSummary.totalElevation).toLocaleString()} m</div>
+              <div className="text-sm font-semibold text-orange-900">{Math.round(selectionSummary.totalElevation).toLocaleString()} m</div>
             </div>
             <div>
               <span className="font-medium">Moving time</span>
-              <div className="text-sm font-semibold text-yellow-900">{formatDuration(selectionSummary.totalMoving)}</div>
+              <div className="text-sm font-semibold text-orange-900">{formatDuration(selectionSummary.totalMoving)}</div>
             </div>
             <div>
               <span className="font-medium">Elapsed time</span>
-              <div className="text-sm font-semibold text-yellow-900">{formatDuration(selectionSummary.totalElapsed)}</div>
+              <div className="text-sm font-semibold text-orange-900">{formatDuration(selectionSummary.totalElapsed)}</div>
             </div>
           </div>
           {selectionSummary.byCountry.size > 0 && (
@@ -434,7 +434,7 @@ export default function ActivitiesPage() {
                 .map(([country, count]) => (
                   <span
                     key={country}
-                    className="rounded-full bg-yellow-200 px-2 py-0.5 text-xs text-yellow-800"
+                    className="rounded-full bg-orange-200 px-2 py-0.5 text-xs text-orange-800"
                   >
                     {country} × {count}
                   </span>
