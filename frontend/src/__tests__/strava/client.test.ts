@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fetchAllActivities, mapStravaActivity } from "../../strava/client";
+import { fetchAllActivities, fetchActivity, mapStravaActivity } from "../../strava/client";
 
 describe("mapStravaActivity", () => {
   it("maps Strava API response to Activity shape", () => {
@@ -168,5 +168,55 @@ describe("fetchAllActivities", () => {
     await expect(fetchAllActivities("fake-token")).rejects.toThrow(
       /rate limit/i
     );
+  });
+});
+
+describe("fetchActivity", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("fetches a single activity by ID and maps it", async () => {
+    const raw = {
+      id: 999,
+      name: "BRM 300 Test",
+      distance: 305000,
+      moving_time: 43200,
+      elapsed_time: 50000,
+      total_elevation_gain: 2000,
+      type: "Ride",
+      sport_type: "Ride",
+      start_date: "2025-07-01T05:00:00Z",
+      start_latlng: [] as [],
+      end_latlng: [] as [],
+    };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(raw))
+    );
+    const result = await fetchActivity("999", "fake-token");
+    expect(result.stravaId).toBe("999");
+    expect(result.name).toBe("BRM 300 Test");
+    expect(result.distance).toBeCloseTo(305);
+  });
+
+  it("throws a human-readable error on 429 with Retry-After", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(null, { status: 429, headers: { "Retry-After": "120" } })
+    );
+    await expect(fetchActivity("999", "fake-token")).rejects.toThrow(/2 minute/);
+  });
+
+  it("throws a human-readable error on 429 without Retry-After", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(null, { status: 429 })
+    );
+    await expect(fetchActivity("999", "fake-token")).rejects.toThrow(/rate limit/i);
+  });
+
+  it("throws on non-OK response", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(null, { status: 404 })
+    );
+    await expect(fetchActivity("999", "fake-token")).rejects.toThrow(/404/);
   });
 });
