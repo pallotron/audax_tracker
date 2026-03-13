@@ -270,6 +270,11 @@ export default function ActivitiesPage() {
     setSelectedIds(new Set());
   }, [selectedIds]);
 
+  const handleBulkRefresh = useCallback(async () => {
+    await Promise.allSettled(Array.from(selectedIds).map((id) => refreshActivity(id)));
+    setSelectedIds(new Set());
+  }, [selectedIds, refreshActivity]);
+
   const allFilteredSelected = filtered.length > 0 && filtered.every((a) => selectedIds.has(a.stravaId));
   const someFilteredSelected = filtered.some((a) => selectedIds.has(a.stravaId));
 
@@ -563,6 +568,7 @@ export default function ActivitiesPage() {
         onSetDnf={handleBulkSetDnf}
         onExcludeFromAwards={handleBulkExcludeFromAwards}
         onIncludeInAwards={handleBulkIncludeInAwards}
+        onRefresh={handleBulkRefresh}
         onClear={clearSelection}
       />
     </div>
