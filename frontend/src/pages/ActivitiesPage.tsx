@@ -87,6 +87,8 @@ export default function ActivitiesPage() {
   const pageSize = 50;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showTypeFilter, setShowTypeFilter] = useState(() => selectedTypes.size > 0);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const resetPage = () => setPage(0);
 
@@ -528,6 +530,10 @@ export default function ActivitiesPage() {
                     onRefresh={() => refreshActivity(a.stravaId)}
                     refreshing={refreshing.has(a.stravaId)}
                     refreshError={refreshErrors.get(a.stravaId) ?? null}
+                    isExpanded={expandedId === a.stravaId}
+                    onToggleExpand={() => setExpandedId((prev) => prev === a.stravaId ? null : a.stravaId)}
+                    isEditing={editingId === a.stravaId}
+                    onEditingChange={(editing) => setEditingId(editing ? a.stravaId : null)}
                   />
                 ))}
               </tbody>

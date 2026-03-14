@@ -11,6 +11,10 @@ interface ActivityRowProps {
   onRefresh: () => Promise<void>;
   refreshing: boolean;
   refreshError: string | null;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  isEditing: boolean;
+  onEditingChange: (editing: boolean) => void;
 }
 
 const EVENT_TYPE_OPTIONS: EventType[] = [
@@ -110,8 +114,18 @@ function AwardsStatusIcon({ activity, onExclude, onInclude, onConfirm }: AwardsS
   );
 }
 
-export function ActivityRow({ activity, selected, onToggle, onRefresh, refreshing, refreshError }: ActivityRowProps) {
-  const [editing, setEditing] = useState(false);
+export function ActivityRow({
+  activity,
+  selected,
+  onToggle,
+  onRefresh,
+  refreshing,
+  refreshError,
+  isExpanded,
+  onToggleExpand,
+  isEditing,
+  onEditingChange,
+}: ActivityRowProps) {
   const [eventType, setEventType] = useState<EventType>(activity.eventType);
   const [homologation, setHomologation] = useState(
     activity.homologationNumber ?? ""
@@ -136,14 +150,14 @@ export function ActivityRow({ activity, selected, onToggle, onRefresh, refreshin
       classificationSource: "manual",
       dnf,
     });
-    setEditing(false);
+    onEditingChange(false);
   };
 
   const handleCancel = () => {
     setEventType(activity.eventType);
     setHomologation(activity.homologationNumber ?? "");
     setDnf(activity.dnf);
-    setEditing(false);
+    onEditingChange(false);
   };
 
   const date =
@@ -151,142 +165,270 @@ export function ActivityRow({ activity, selected, onToggle, onRefresh, refreshin
       ? activity.date
       : new Date(activity.date);
 
+  const isUnconfirmed = activity.needsConfirmation && !activity.manualOverride && !activity.excludeFromAwards;
+  const isExcluded = activity.excludeFromAwards;
+  const awardStatusText = isUnconfirmed
+    ? "? needs confirmation"
+    : isExcluded
+    ? "✕ excluded"
+    : "✓ counting";
+
   return (
-    <tr className="hover:bg-gray-50">
-      <td className="whitespace-nowrap px-3 py-2">
-        <input
-          type="checkbox"
-          checked={selected}
-          onChange={() => onToggle(activity.stravaId)}
-          className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-        />
-      </td>
-      <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-900">
-        {formatDate(date)}
-      </td>
-      <td className="max-w-xs truncate px-3 py-2 text-sm text-gray-900">
-        <a
-          href={activity.sourceUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-orange-600 hover:underline"
-        >
-          {activity.name}
-        </a>
-      </td>
-      <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-600 text-right">
-        {Math.round(activity.distance)}
-      </td>
-      <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-600 text-right">
-        {Math.round(activity.elevationGain)}
-      </td>
-      <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-600">
-        {formatDuration(activity.movingTime)}
-      </td>
-      <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-600">
-        {formatDuration(activity.elapsedTime)}
-      </td>
-      <td className="whitespace-nowrap px-3 py-2 text-sm">
-        {editing ? (
-          <select
-            value={eventType ?? ""}
-            onChange={(e) =>
-              setEventType(
-                e.target.value === "" ? null : (e.target.value as EventType)
-              )
-            }
-            className="rounded border border-gray-300 px-1 py-0.5 text-xs"
-          >
-            {EVENT_TYPE_OPTIONS.map((opt) => (
-              <option key={opt ?? "__null__"} value={opt ?? ""}>
-                {opt ?? "(none)"}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <EventTypeBadge
-            eventType={activity.eventType}
-            source={activity.classificationSource}
-            needsConfirmation={activity.needsConfirmation && !activity.manualOverride}
-            dnf={activity.dnf}
-          />
-        )}
-      </td>
-      <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-600">
-        {editing ? (
+    <>
+      <tr
+        className="hover:bg-gray-50 cursor-pointer sm:cursor-default"
+        onClick={() => { if (!isEditing) onToggleExpand(); }}
+      >
+        {/* col 1: checkbox — hidden on mobile */}
+        <td className="hidden sm:table-cell whitespace-nowrap px-3 py-2">
           <input
-            type="text"
-            value={homologation}
-            onChange={(e) => setHomologation(e.target.value)}
-            placeholder="Homologation #"
-            title="Retrieve homologation # from https://myaccount.audax-club-parisien.com/"
-            className="w-28 rounded border border-gray-300 px-1 py-0.5 text-xs"
+            type="checkbox"
+            checked={selected}
+            onChange={(e) => { e.stopPropagation(); onToggle(activity.stravaId); }}
+            className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
           />
-        ) : (
-          activity.homologationNumber ?? "-"
-        )}
-      </td>
-      <td className="whitespace-nowrap px-3 py-2 text-sm text-center">
-        <AwardsStatusIcon
-          activity={activity}
-          onExclude={handleExclude}
-          onInclude={handleInclude}
-          onConfirm={handleConfirm}
-        />
-      </td>
-      <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500">
-        {activity.startRegion && activity.startCountry
-          ? `${activity.startRegion}, ${activity.startCountry}`
-          : activity.startCountry ?? "—"}
-      </td>
-      <td className="whitespace-nowrap px-3 py-2 text-sm">
-        {editing ? (
-          <span className="inline-flex items-center gap-2">
-            <label className="inline-flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={dnf}
-                onChange={(e) => setDnf(e.target.checked)}
-                className="rounded border-gray-300 text-red-500 focus:ring-red-400"
+        </td>
+        {/* col 2: date — always visible */}
+        <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-900">
+          {formatDate(date)}
+        </td>
+        {/* col 3: name — always visible */}
+        <td className="max-w-xs truncate px-3 py-2 text-sm text-gray-900">
+          <a
+            href={activity.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-orange-600 hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {activity.name}
+          </a>
+        </td>
+        {/* col 4: distance — always visible */}
+        <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-600 text-right">
+          {Math.round(activity.distance)}
+        </td>
+        {/* col 5: elevation — hidden on mobile */}
+        <td className="hidden sm:table-cell whitespace-nowrap px-3 py-2 text-sm text-gray-600 text-right">
+          {Math.round(activity.elevationGain)}
+        </td>
+        {/* col 6: moving time — hidden on mobile */}
+        <td className="hidden sm:table-cell whitespace-nowrap px-3 py-2 text-sm text-gray-600">
+          {formatDuration(activity.movingTime)}
+        </td>
+        {/* col 7: elapsed time — hidden on mobile */}
+        <td className="hidden sm:table-cell whitespace-nowrap px-3 py-2 text-sm text-gray-600">
+          {formatDuration(activity.elapsedTime)}
+        </td>
+        {/* col 8: event type — always visible, with mobile chevron */}
+        <td className="whitespace-nowrap px-3 py-2 text-sm">
+          {isEditing ? (
+            <select
+              value={eventType ?? ""}
+              onChange={(e) =>
+                setEventType(e.target.value === "" ? null : (e.target.value as EventType))
+              }
+              onClick={(e) => e.stopPropagation()}
+              className="rounded border border-gray-300 px-1 py-0.5 text-xs"
+            >
+              {EVENT_TYPE_OPTIONS.map((opt) => (
+                <option key={opt ?? "__null__"} value={opt ?? ""}>{opt ?? "(none)"}</option>
+              ))}
+            </select>
+          ) : (
+            <span className="inline-flex items-center gap-1">
+              <EventTypeBadge
+                eventType={activity.eventType}
+                source={activity.classificationSource}
+                needsConfirmation={activity.needsConfirmation && !activity.manualOverride}
+                dnf={activity.dnf}
               />
-              😢 DNF
-            </label>
-            <button
-              onClick={handleSave}
-              className="rounded bg-green-600 px-2 py-0.5 text-xs text-white hover:bg-green-700"
-            >
-              Save
-            </button>
-            <button
-              onClick={handleCancel}
-              className="rounded bg-gray-300 px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-400"
-            >
-              Cancel
-            </button>
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1">
-            <button
-              onClick={onRefresh}
-              disabled={refreshing}
-              title={refreshError ?? "Refresh from Strava"}
-              className={`rounded px-2 py-0.5 text-xs ${
-                refreshError
-                  ? "bg-red-100 text-red-600 hover:bg-red-200"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              } disabled:opacity-50`}
-            >
-              {refreshing ? "…" : "↺"}
-            </button>
-            <button
-              onClick={() => setEditing(true)}
-              className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-200"
-            >
-              Edit
-            </button>
-          </span>
-        )}
-      </td>
-    </tr>
+              <span className="sm:hidden text-gray-400 text-xs">{isExpanded ? "▾" : "▸"}</span>
+            </span>
+          )}
+        </td>
+        {/* col 9: homologation — hidden on mobile */}
+        <td className="hidden sm:table-cell whitespace-nowrap px-3 py-2 text-sm text-gray-600">
+          {isEditing ? (
+            <input
+              type="text"
+              value={homologation}
+              onChange={(e) => setHomologation(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              placeholder="Homologation #"
+              title="Retrieve homologation # from https://myaccount.audax-club-parisien.com/"
+              className="w-28 rounded border border-gray-300 px-1 py-0.5 text-xs"
+            />
+          ) : (
+            activity.homologationNumber ?? "-"
+          )}
+        </td>
+        {/* col 10: awards — hidden on mobile */}
+        <td className="hidden sm:table-cell whitespace-nowrap px-3 py-2 text-sm text-center">
+          <AwardsStatusIcon
+            activity={activity}
+            onExclude={handleExclude}
+            onInclude={handleInclude}
+            onConfirm={handleConfirm}
+          />
+        </td>
+        {/* col 11: start region — hidden on mobile */}
+        <td className="hidden sm:table-cell whitespace-nowrap px-3 py-2 text-sm text-gray-500">
+          {activity.startRegion && activity.startCountry
+            ? `${activity.startRegion}, ${activity.startCountry}`
+            : activity.startCountry ?? "—"}
+        </td>
+        {/* col 12: actions — hidden on mobile */}
+        <td className="hidden sm:table-cell whitespace-nowrap px-3 py-2 text-sm">
+          {isEditing ? (
+            <span className="inline-flex items-center gap-2">
+              <label className="inline-flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={dnf}
+                  onChange={(e) => setDnf(e.target.checked)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="rounded border-gray-300 text-red-500 focus:ring-red-400"
+                />
+                😢 DNF
+              </label>
+              <button
+                onClick={(e) => { e.stopPropagation(); void handleSave(); }}
+                className="rounded bg-green-600 px-2 py-0.5 text-xs text-white hover:bg-green-700"
+              >
+                Save
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleCancel(); }}
+                className="rounded bg-gray-300 px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1">
+              <button
+                onClick={(e) => { e.stopPropagation(); void onRefresh(); }}
+                disabled={refreshing}
+                title={refreshError ?? "Refresh from Strava"}
+                className={`rounded px-2 py-0.5 text-xs ${
+                  refreshError
+                    ? "bg-red-100 text-red-600 hover:bg-red-200"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                } disabled:opacity-50`}
+              >
+                {refreshing ? "…" : "↺"}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onEditingChange(true); }}
+                className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-200"
+              >
+                Edit
+              </button>
+            </span>
+          )}
+        </td>
+      </tr>
+
+      {/* Mobile expand panel — only shown on mobile (sm:hidden) when isExpanded */}
+      {isExpanded && (
+        <tr className="sm:hidden bg-gray-50">
+          <td colSpan={12} className="px-4 py-3">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-gray-700">
+              <div>
+                <span className="font-medium text-gray-500">Elevation</span>
+                <div>{Math.round(activity.elevationGain)} m</div>
+              </div>
+              <div>
+                <span className="font-medium text-gray-500">Moving time</span>
+                <div>{formatDuration(activity.movingTime)}</div>
+              </div>
+              <div>
+                <span className="font-medium text-gray-500">Elapsed time</span>
+                <div>{formatDuration(activity.elapsedTime)}</div>
+              </div>
+              <div>
+                <span className="font-medium text-gray-500">Homologation</span>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={homologation}
+                    onChange={(e) => setHomologation(e.target.value)}
+                    placeholder="Homologation #"
+                    className="mt-0.5 w-full rounded border border-gray-300 px-1 py-0.5 text-xs"
+                  />
+                ) : (
+                  <div>{activity.homologationNumber ?? "-"}</div>
+                )}
+              </div>
+              <div>
+                <span className="font-medium text-gray-500">Awards</span>
+                <div>{awardStatusText}</div>
+              </div>
+              <div>
+                <span className="font-medium text-gray-500">Start</span>
+                <div>
+                  {activity.startRegion && activity.startCountry
+                    ? `${activity.startRegion}, ${activity.startCountry}`
+                    : activity.startCountry ?? "—"}
+                </div>
+              </div>
+            </div>
+
+            {/* Edit controls in expand panel */}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {isEditing ? (
+                <>
+                  <div className="flex-1">
+                    <label className="inline-flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={dnf}
+                        onChange={(e) => setDnf(e.target.checked)}
+                        className="rounded border-gray-300 text-red-500 focus:ring-red-400"
+                      />
+                      😢 DNF
+                    </label>
+                  </div>
+                  <button
+                    onClick={() => void handleSave()}
+                    className="rounded bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={handleCancel}
+                    className="rounded bg-gray-300 px-3 py-1 text-xs text-gray-700 hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => void onRefresh()}
+                    disabled={refreshing}
+                    title={refreshError ?? "Refresh from Strava"}
+                    className={`rounded px-3 py-1 text-xs ${
+                      refreshError
+                        ? "bg-red-100 text-red-600 hover:bg-red-200"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    } disabled:opacity-50`}
+                  >
+                    {refreshing ? "Refreshing…" : "↺ Refresh"}
+                  </button>
+                  <button
+                    onClick={() => onEditingChange(true)}
+                    className="rounded bg-gray-100 px-3 py-1 text-xs text-gray-600 hover:bg-gray-200"
+                  >
+                    Edit
+                  </button>
+                </>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
