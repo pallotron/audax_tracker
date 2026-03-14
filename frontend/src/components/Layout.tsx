@@ -29,23 +29,11 @@ export default function Layout() {
           <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
             {/* Mobile layout: hamburger + two utility rows (hidden on sm+) */}
             <div className="sm:hidden">
-              {/* Row 1: logo + hamburger | ☕ + name + logout */}
+              {/* Row 1: logo | ☕ + name + logout */}
               <div className="flex h-14 items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <NavLink to="/" className="flex items-center">
-                    <img src={appIcon} alt="Audax Tracker" className="h-10 w-10 rounded-xl" />
-                  </NavLink>
-                  <button
-                    onClick={() => setMenuOpen((v) => !v)}
-                    className="flex flex-col gap-1.5 p-1"
-                    aria-label="Toggle navigation menu"
-                    aria-expanded={menuOpen}
-                  >
-                    <span className="block w-5 h-0.5 bg-gray-600 rounded" />
-                    <span className="block w-5 h-0.5 bg-gray-600 rounded" />
-                    <span className="block w-5 h-0.5 bg-gray-600 rounded" />
-                  </button>
-                </div>
+                <NavLink to="/" className="flex items-center">
+                  <img src={appIcon} alt="Audax Tracker" className="h-10 w-10 rounded-xl" />
+                </NavLink>
                 {tokens && (
                   <div className="flex items-center gap-2">
                     <a
@@ -64,9 +52,20 @@ export default function Layout() {
                 )}
               </div>
 
-              {/* Row 2: sync utilities */}
+              {/* Row 2: hamburger + sync utilities */}
               {tokens && (
-                <div className="flex items-center justify-end gap-2 border-t border-gray-100 py-1.5">
+                <div className="flex items-center gap-2 border-t border-gray-100 py-1.5">
+                  <button
+                    onClick={() => setMenuOpen((v) => !v)}
+                    className="flex flex-col gap-1.5 p-1 mr-1"
+                    aria-label="Toggle navigation menu"
+                    aria-expanded={menuOpen}
+                  >
+                    <span className="block w-5 h-0.5 bg-gray-600 rounded" />
+                    <span className="block w-5 h-0.5 bg-gray-600 rounded" />
+                    <span className="block w-5 h-0.5 bg-gray-600 rounded" />
+                  </button>
+                  <div className="flex-1 flex items-center justify-end gap-2">
                   {geocoding && (
                     <span className="inline-flex items-center gap-1 text-xs text-blue-500">
                       <span className="relative flex h-2 w-2">
@@ -112,6 +111,7 @@ export default function Layout() {
                       </>
                     ) : checking ? "Checking…" : hasPending ? "Sync now" : "Sync"}
                   </button>
+                  </div>
                 </div>
               )}
 

@@ -494,11 +494,11 @@ export default function ActivitiesPage() {
                   {([
                     ["date", "Date", "text-left", false],
                     ["name", "Name", "text-left", false],
-                    ["distance", "Km", "text-right", false],
+                    ["distance", "Km", "text-right", true],
                     ["elevationGain", "Elev (m)", "text-right", true],
                     ["movingTime", "Moving", "text-left", true],
                     ["elapsedTime", "Elapsed", "text-left", true],
-                    ["eventType", "Type", "text-left", false],
+                    ["eventType", "Type", "text-left", true],
                     ["homologationNumber", "Homologation", "text-left", true],
                   ] as [SortKey, string, string, boolean][]).map(([key, label, align, mobileHidden]) => (
                     <th

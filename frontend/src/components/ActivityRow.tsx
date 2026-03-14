@@ -197,8 +197,8 @@ export function ActivityRow({
             {activity.name}
           </a>
         </td>
-        {/* col 4: distance — always visible */}
-        <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-600 text-right">
+        {/* col 4: distance — hidden on mobile */}
+        <td className="hidden sm:table-cell whitespace-nowrap px-3 py-2 text-sm text-gray-600 text-right">
           {Math.round(activity.distance)}
         </td>
         {/* col 5: elevation — hidden on mobile */}
@@ -213,8 +213,8 @@ export function ActivityRow({
         <td className="hidden sm:table-cell whitespace-nowrap px-3 py-2 text-sm text-gray-600">
           {formatDuration(activity.elapsedTime)}
         </td>
-        {/* col 8: event type — always visible */}
-        <td className="whitespace-nowrap px-3 py-2 text-sm">
+        {/* col 8: event type — hidden on mobile */}
+        <td className="hidden sm:table-cell whitespace-nowrap px-3 py-2 text-sm">
           {isEditing ? (
             <select
               value={eventType ?? ""}
@@ -323,71 +323,94 @@ export function ActivityRow({
       {/* Mobile secondary row — always visible on mobile (sm:hidden) */}
       <tr className="sm:hidden bg-gray-50">
         <td colSpan={12} className="px-3 py-2">
+          <div className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
+            <span className="font-medium text-gray-800">{Math.round(activity.distance)} km</span>
+            {!isEditing && (
+              <EventTypeBadge
+                eventType={activity.eventType}
+                source={activity.classificationSource}
+                needsConfirmation={activity.needsConfirmation && !activity.manualOverride}
+                dnf={activity.dnf}
+              />
+            )}
+            {isEditing && (
+              <select
+                value={eventType ?? ""}
+                onChange={(e) =>
+                  setEventType(e.target.value === "" ? null : (e.target.value as EventType))
+                }
+                className="rounded border border-gray-300 px-1 py-0.5 text-xs"
+              >
+                {EVENT_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt ?? "__null__"} value={opt ?? ""}>{opt ?? "(none)"}</option>
+                ))}
+              </select>
+            )}
             <span>↗ {Math.round(activity.elevationGain)}m</span>
             <span>⏱ {formatDuration(activity.movingTime)}</span>
             <span>⌛ {formatDuration(activity.elapsedTime)}</span>
             {!isEditing && (
               <>
                 <span>{awardStatusText}</span>
+                <button
+                  onClick={() => onEditingChange(true)}
+                  className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-200"
+                >
+                  Edit
+                </button>
                 <span>{activity.homologationNumber ?? "-"}</span>
               </>
             )}
-            <div className="flex flex-wrap items-center gap-2 ml-auto">
-              {isEditing ? (
-                <>
+            {isEditing && (
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  value={homologation}
+                  onChange={(e) => setHomologation(e.target.value)}
+                  placeholder="Homologation #"
+                  className="w-24 rounded border border-gray-300 px-1 py-0.5 text-xs"
+                />
+                <label className="inline-flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
                   <input
-                    type="text"
-                    value={homologation}
-                    onChange={(e) => setHomologation(e.target.value)}
-                    placeholder="Homologation #"
-                    className="w-24 rounded border border-gray-300 px-1 py-0.5 text-xs"
+                    type="checkbox"
+                    checked={dnf}
+                    onChange={(e) => setDnf(e.target.checked)}
+                    className="rounded border-gray-300 text-red-500 focus:ring-red-400"
                   />
-                  <label className="inline-flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={dnf}
-                      onChange={(e) => setDnf(e.target.checked)}
-                      className="rounded border-gray-300 text-red-500 focus:ring-red-400"
-                    />
-                    😢 DNF
-                  </label>
-                  <button
-                    onClick={() => void handleSave()}
-                    className="rounded bg-green-600 px-2 py-0.5 text-xs text-white hover:bg-green-700"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={handleCancel}
-                    className="rounded bg-gray-300 px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-400"
-                  >
-                    Cancel
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => void onRefresh()}
-                    disabled={refreshing}
-                    title={refreshError ?? "Refresh from Strava"}
-                    className={`rounded px-2 py-0.5 text-xs ${
-                      refreshError
-                        ? "bg-red-100 text-red-600 hover:bg-red-200"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    } disabled:opacity-50`}
-                  >
-                    {refreshing ? "…" : "↺ Refresh"}
-                  </button>
-                  <button
-                    onClick={() => onEditingChange(true)}
-                    className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-200"
-                  >
-                    Edit
-                  </button>
-                </>
-              )}
+                  😢 DNF
+                </label>
+                <button
+                  onClick={() => void handleSave()}
+                  className="rounded bg-green-600 px-2 py-0.5 text-xs text-white hover:bg-green-700"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={handleCancel}
+                  className="rounded bg-gray-300 px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-400"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+          {!isEditing && (
+            <div>
+              <button
+                onClick={() => void onRefresh()}
+                disabled={refreshing}
+                title={refreshError ?? "Refresh from Strava"}
+                className={`rounded px-2 py-0.5 text-xs ${
+                  refreshError
+                    ? "bg-red-100 text-red-600 hover:bg-red-200"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                } disabled:opacity-50`}
+              >
+                {refreshing ? "…" : "↺ Refresh"}
+              </button>
             </div>
+          )}
           </div>
         </td>
       </tr>
