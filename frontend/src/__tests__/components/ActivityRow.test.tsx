@@ -40,8 +40,6 @@ function renderRow(overrides: Partial<Parameters<typeof ActivityRow>[0]> = {}) {
     onRefresh: vi.fn(),
     refreshing: false,
     refreshError: null,
-    isExpanded: false,
-    onToggleExpand: vi.fn(),
     isEditing: false,
     onEditingChange: vi.fn(),
     ...overrides,
@@ -56,6 +54,12 @@ function renderRow(overrides: Partial<Parameters<typeof ActivityRow>[0]> = {}) {
   );
 }
 
+// Helper: the secondary row always contains "↗" in its stats — use it to scope queries.
+// JSDOM renders hidden desktop columns too, so within() prevents "multiple elements" errors.
+function getSecondaryRow() {
+  return screen.getByText(/↗/).closest("tr")!;
+}
+
 describe("ActivityRow", () => {
   it("renders the activity name and distance", () => {
     renderRow();
@@ -63,64 +67,39 @@ describe("ActivityRow", () => {
     expect(screen.getByText("1230")).toBeInTheDocument();
   });
 
-  it("shows a chevron in the type cell on mobile", () => {
+  it("secondary row is always rendered", () => {
     renderRow();
-    // chevron character ▸ should be in the document
-    expect(screen.getByText(/▸|▾/)).toBeInTheDocument();
+    // The "↗" elevation prefix only appears in the secondary row stats
+    expect(screen.getByText(/↗/)).toBeInTheDocument();
   });
 
-  it("calls onToggleExpand when the row is clicked and not editing", async () => {
-    const onToggleExpand = vi.fn();
-    renderRow({ onToggleExpand });
-    // Click the date cell — the name cell's <a> stops propagation.
-    // formatDate returns locale-formatted "18 Aug 2024" or "Aug 18, 2024" etc.
-    // Match any text that includes "2024" to find the date cell safely.
-    await userEvent.click(screen.getByText(/2024/));
-    expect(onToggleExpand).toHaveBeenCalledOnce();
+  it("Edit button is always visible in secondary row", () => {
+    renderRow();
+    expect(within(getSecondaryRow()).getByRole("button", { name: /edit/i })).toBeInTheDocument();
   });
 
-  it("does not call onToggleExpand when isEditing is true", async () => {
-    const onToggleExpand = vi.fn();
-    renderRow({ onToggleExpand, isEditing: true, isExpanded: true });
-    // Click the date cell (does not stopPropagation, so it reaches the <tr> handler)
-    await userEvent.click(screen.getByText(/2024/));
-    expect(onToggleExpand).not.toHaveBeenCalled();
+  it("Refresh button is always visible in secondary row", () => {
+    renderRow();
+    expect(within(getSecondaryRow()).getByRole("button", { name: /↺/i })).toBeInTheDocument();
   });
 
-  it("shows expand panel when isExpanded is true", () => {
-    renderRow({ isExpanded: true });
-    // "Elevation" label only exists in the expand panel
-    expect(screen.getByText("Elevation")).toBeInTheDocument();
-  });
-
-  it("hides expand panel when isExpanded is false", () => {
-    renderRow({ isExpanded: false });
-    // The "Elevation" label only appears in the expand panel, not the main row
-    expect(screen.queryByText("Elevation")).not.toBeInTheDocument();
-  });
-
-  it("calls onEditingChange(true) when Edit is clicked from expand panel", async () => {
+  it("calls onEditingChange(true) when Edit is clicked", async () => {
     const onEditingChange = vi.fn();
-    renderRow({ isExpanded: true, onEditingChange });
-    // Scope to the expand panel row — JSDOM renders hidden desktop buttons too,
-    // so we use within() to avoid "multiple elements" errors.
-    const expandPanel = screen.getByText("Elevation").closest("tr")!;
-    await userEvent.click(within(expandPanel).getByRole("button", { name: /edit/i }));
+    renderRow({ onEditingChange });
+    await userEvent.click(within(getSecondaryRow()).getByRole("button", { name: /edit/i }));
     expect(onEditingChange).toHaveBeenCalledWith(true);
   });
 
-  it("shows edit controls in expand panel when isEditing is true", () => {
-    renderRow({ isExpanded: true, isEditing: true });
-    const expandPanel = screen.getByText("Elevation").closest("tr")!;
-    expect(within(expandPanel).getByRole("button", { name: /save/i })).toBeInTheDocument();
-    expect(within(expandPanel).getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+  it("shows Save and Cancel in secondary row when isEditing", () => {
+    renderRow({ isEditing: true });
+    expect(within(getSecondaryRow()).getByRole("button", { name: /save/i })).toBeInTheDocument();
+    expect(within(getSecondaryRow()).getByRole("button", { name: /cancel/i })).toBeInTheDocument();
   });
 
   it("calls onEditingChange(false) when Cancel is clicked", async () => {
     const onEditingChange = vi.fn();
-    renderRow({ isExpanded: true, isEditing: true, onEditingChange });
-    const expandPanel = screen.getByText("Elevation").closest("tr")!;
-    await userEvent.click(within(expandPanel).getByRole("button", { name: /cancel/i }));
+    renderRow({ isEditing: true, onEditingChange });
+    await userEvent.click(within(getSecondaryRow()).getByRole("button", { name: /cancel/i }));
     expect(onEditingChange).toHaveBeenCalledWith(false);
   });
 });

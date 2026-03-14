@@ -11,8 +11,6 @@ interface ActivityRowProps {
   onRefresh: () => Promise<void>;
   refreshing: boolean;
   refreshError: string | null;
-  isExpanded: boolean;
-  onToggleExpand: () => void;
   isEditing: boolean;
   onEditingChange: (editing: boolean) => void;
 }
@@ -121,8 +119,6 @@ export function ActivityRow({
   onRefresh,
   refreshing,
   refreshError,
-  isExpanded,
-  onToggleExpand,
   isEditing,
   onEditingChange,
 }: ActivityRowProps) {
@@ -175,10 +171,7 @@ export function ActivityRow({
 
   return (
     <>
-      <tr
-        className="hover:bg-gray-50 cursor-pointer sm:cursor-default"
-        onClick={() => { if (!isEditing) onToggleExpand(); }}
-      >
+      <tr className="hover:bg-gray-50">
         {/* col 1: checkbox — hidden on mobile */}
         <td className="hidden sm:table-cell whitespace-nowrap px-3 py-2">
           <input
@@ -220,7 +213,7 @@ export function ActivityRow({
         <td className="hidden sm:table-cell whitespace-nowrap px-3 py-2 text-sm text-gray-600">
           {formatDuration(activity.elapsedTime)}
         </td>
-        {/* col 8: event type — always visible, with mobile chevron */}
+        {/* col 8: event type — always visible */}
         <td className="whitespace-nowrap px-3 py-2 text-sm">
           {isEditing ? (
             <select
@@ -236,15 +229,12 @@ export function ActivityRow({
               ))}
             </select>
           ) : (
-            <span className="inline-flex items-center gap-1">
-              <EventTypeBadge
-                eventType={activity.eventType}
-                source={activity.classificationSource}
-                needsConfirmation={activity.needsConfirmation && !activity.manualOverride}
-                dnf={activity.dnf}
-              />
-              <span className="sm:hidden text-gray-400 text-xs">{isExpanded ? "▾" : "▸"}</span>
-            </span>
+            <EventTypeBadge
+              eventType={activity.eventType}
+              source={activity.classificationSource}
+              needsConfirmation={activity.needsConfirmation && !activity.manualOverride}
+              dnf={activity.dnf}
+            />
           )}
         </td>
         {/* col 9: homologation — hidden on mobile */}
@@ -330,75 +320,47 @@ export function ActivityRow({
         </td>
       </tr>
 
-      {/* Mobile expand panel — only shown on mobile (sm:hidden) when isExpanded */}
-      {isExpanded && (
-        <tr className="sm:hidden bg-gray-50">
-          <td colSpan={12} className="px-4 py-3">
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-gray-700">
-              <div>
-                <span className="font-medium text-gray-500">Elevation</span>
-                <div>{Math.round(activity.elevationGain)} m</div>
-              </div>
-              <div>
-                <span className="font-medium text-gray-500">Moving time</span>
-                <div>{formatDuration(activity.movingTime)}</div>
-              </div>
-              <div>
-                <span className="font-medium text-gray-500">Elapsed time</span>
-                <div>{formatDuration(activity.elapsedTime)}</div>
-              </div>
-              <div>
-                <span className="font-medium text-gray-500">Homologation</span>
-                {isEditing ? (
+      {/* Mobile secondary row — always visible on mobile (sm:hidden) */}
+      <tr className="sm:hidden bg-gray-50">
+        <td colSpan={12} className="px-3 py-2">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
+            <span>↗ {Math.round(activity.elevationGain)}m</span>
+            <span>⏱ {formatDuration(activity.movingTime)}</span>
+            <span>⌛ {formatDuration(activity.elapsedTime)}</span>
+            {!isEditing && (
+              <>
+                <span>{awardStatusText}</span>
+                <span>{activity.homologationNumber ?? "-"}</span>
+              </>
+            )}
+            <div className="flex flex-wrap items-center gap-2 ml-auto">
+              {isEditing ? (
+                <>
                   <input
                     type="text"
                     value={homologation}
                     onChange={(e) => setHomologation(e.target.value)}
                     placeholder="Homologation #"
-                    className="mt-0.5 w-full rounded border border-gray-300 px-1 py-0.5 text-xs"
+                    className="w-24 rounded border border-gray-300 px-1 py-0.5 text-xs"
                   />
-                ) : (
-                  <div>{activity.homologationNumber ?? "-"}</div>
-                )}
-              </div>
-              <div>
-                <span className="font-medium text-gray-500">Awards</span>
-                <div>{awardStatusText}</div>
-              </div>
-              <div>
-                <span className="font-medium text-gray-500">Start</span>
-                <div>
-                  {activity.startRegion && activity.startCountry
-                    ? `${activity.startRegion}, ${activity.startCountry}`
-                    : activity.startCountry ?? "—"}
-                </div>
-              </div>
-            </div>
-
-            {/* Edit controls in expand panel */}
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {isEditing ? (
-                <>
-                  <div className="flex-1">
-                    <label className="inline-flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={dnf}
-                        onChange={(e) => setDnf(e.target.checked)}
-                        className="rounded border-gray-300 text-red-500 focus:ring-red-400"
-                      />
-                      😢 DNF
-                    </label>
-                  </div>
+                  <label className="inline-flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={dnf}
+                      onChange={(e) => setDnf(e.target.checked)}
+                      className="rounded border-gray-300 text-red-500 focus:ring-red-400"
+                    />
+                    😢 DNF
+                  </label>
                   <button
                     onClick={() => void handleSave()}
-                    className="rounded bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700"
+                    className="rounded bg-green-600 px-2 py-0.5 text-xs text-white hover:bg-green-700"
                   >
                     Save
                   </button>
                   <button
                     onClick={handleCancel}
-                    className="rounded bg-gray-300 px-3 py-1 text-xs text-gray-700 hover:bg-gray-400"
+                    className="rounded bg-gray-300 px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-400"
                   >
                     Cancel
                   </button>
@@ -409,26 +371,26 @@ export function ActivityRow({
                     onClick={() => void onRefresh()}
                     disabled={refreshing}
                     title={refreshError ?? "Refresh from Strava"}
-                    className={`rounded px-3 py-1 text-xs ${
+                    className={`rounded px-2 py-0.5 text-xs ${
                       refreshError
                         ? "bg-red-100 text-red-600 hover:bg-red-200"
                         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                     } disabled:opacity-50`}
                   >
-                    {refreshing ? "Refreshing…" : "↺ Refresh"}
+                    {refreshing ? "…" : "↺ Refresh"}
                   </button>
                   <button
                     onClick={() => onEditingChange(true)}
-                    className="rounded bg-gray-100 px-3 py-1 text-xs text-gray-600 hover:bg-gray-200"
+                    className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-200"
                   >
                     Edit
                   </button>
                 </>
               )}
             </div>
-          </td>
-        </tr>
-      )}
+          </div>
+        </td>
+      </tr>
     </>
   );
 }
