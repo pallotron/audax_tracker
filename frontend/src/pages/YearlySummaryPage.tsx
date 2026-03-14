@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type Activity } from "../db/database";
 import { EventTypeBadge, ClassificationLegend } from "../components/EventTypeBadge";
@@ -8,6 +8,11 @@ import { formatDuration } from "../utils/formatDuration";
 export default function YearlySummaryPage() {
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [showComparison, setShowComparison] = useState(false);
+  const [expandedSummaryRowId, setExpandedSummaryRowId] = useState<string | null>(null);
+
+  const toggleSummaryRow = (id: string) => {
+    setExpandedSummaryRowId((prev) => (prev === id ? null : id));
+  };
 
   const activities = useLiveQuery(() => db.activities.toArray());
 
@@ -191,49 +196,80 @@ export default function YearlySummaryPage() {
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
                   Km
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                <th className="hidden sm:table-cell px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
                   Elev
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                <th className="hidden sm:table-cell px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
                   Time
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Type
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                <th className="hidden sm:table-cell px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Homologation
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {yearActivities.map((activity: Activity) => (
-                <tr key={activity.stravaId} className="hover:bg-gray-50">
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900">
-                    {formatDate(new Date(activity.date))}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-900">
-                    {activity.name}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-900">
-                    {Math.round(activity.distance)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-900">
-                    {Math.round(activity.elevationGain)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-900">
-                    {formatDuration(activity.elapsedTime)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm">
-                    <EventTypeBadge
-                      eventType={activity.eventType}
-                      source={activity.classificationSource}
-                    />
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
-                    {activity.homologationNumber ?? "-"}
-                  </td>
-                </tr>
-              ))}
+              {yearActivities.map((activity: Activity) => {
+                const isExpanded = expandedSummaryRowId === activity.stravaId;
+                return (
+                  <Fragment key={activity.stravaId}>
+                    <tr
+                      className="hover:bg-gray-50 cursor-pointer sm:cursor-default"
+                      onClick={() => toggleSummaryRow(activity.stravaId)}
+                    >
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900">
+                        {formatDate(new Date(activity.date))}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {activity.name}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-900">
+                        {Math.round(activity.distance)}
+                      </td>
+                      <td className="hidden sm:table-cell whitespace-nowrap px-4 py-3 text-right text-sm text-gray-900">
+                        {Math.round(activity.elevationGain)}
+                      </td>
+                      <td className="hidden sm:table-cell whitespace-nowrap px-4 py-3 text-right text-sm text-gray-900">
+                        {formatDuration(activity.elapsedTime)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm">
+                        <span className="inline-flex items-center gap-1">
+                          <EventTypeBadge
+                            eventType={activity.eventType}
+                            source={activity.classificationSource}
+                          />
+                          <span className="sm:hidden text-gray-400 text-xs">{isExpanded ? "▾" : "▸"}</span>
+                        </span>
+                      </td>
+                      <td className="hidden sm:table-cell whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                        {activity.homologationNumber ?? "-"}
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <tr className="sm:hidden bg-gray-50">
+                        <td colSpan={7} className="px-4 py-3">
+                          <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-gray-700">
+                            <div>
+                              <span className="font-medium text-gray-500">Elevation</span>
+                              <div>{Math.round(activity.elevationGain)} m</div>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-500">Time</span>
+                              <div>{formatDuration(activity.elapsedTime)}</div>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-500">Homologation</span>
+                              <div>{activity.homologationNumber ?? "-"}</div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
