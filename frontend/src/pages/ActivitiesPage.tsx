@@ -87,7 +87,6 @@ export default function ActivitiesPage() {
   const pageSize = 50;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showTypeFilter, setShowTypeFilter] = useState(() => selectedTypes.size > 0);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const resetPage = () => setPage(0);
@@ -277,18 +276,8 @@ export default function ActivitiesPage() {
     setSelectedIds(new Set());
   }, [selectedIds, refreshActivity]);
 
-  const handleToggleExpand = useCallback((id: string) => {
-    if (editingId !== null) return;
-    setExpandedId((prev) => (prev === id ? null : id));
-  }, [editingId]);
-
   const handleEditingChange = useCallback((id: string, editing: boolean) => {
-    if (editing) {
-      setEditingId(id);
-      setExpandedId(id);
-    } else {
-      setEditingId(null);
-    }
+    setEditingId(editing ? id : null);
   }, []);
 
   const allFilteredSelected = filtered.length > 0 && filtered.every((a) => selectedIds.has(a.stravaId));
@@ -544,8 +533,6 @@ export default function ActivitiesPage() {
                     onRefresh={() => refreshActivity(a.stravaId)}
                     refreshing={refreshing.has(a.stravaId)}
                     refreshError={refreshErrors.get(a.stravaId) ?? null}
-                    isExpanded={expandedId === a.stravaId}
-                    onToggleExpand={() => handleToggleExpand(a.stravaId)}
                     isEditing={editingId === a.stravaId}
                     onEditingChange={(editing) => handleEditingChange(a.stravaId, editing)}
                   />
