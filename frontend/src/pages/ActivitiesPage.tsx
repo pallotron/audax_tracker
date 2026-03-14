@@ -277,6 +277,20 @@ export default function ActivitiesPage() {
     setSelectedIds(new Set());
   }, [selectedIds, refreshActivity]);
 
+  const handleToggleExpand = useCallback((id: string) => {
+    if (editingId !== null) return;
+    setExpandedId((prev) => (prev === id ? null : id));
+  }, [editingId]);
+
+  const handleEditingChange = useCallback((id: string, editing: boolean) => {
+    if (editing) {
+      setEditingId(id);
+      setExpandedId(id);
+    } else {
+      setEditingId(null);
+    }
+  }, []);
+
   const allFilteredSelected = filtered.length > 0 && filtered.every((a) => selectedIds.has(a.stravaId));
   const someFilteredSelected = filtered.some((a) => selectedIds.has(a.stravaId));
 
@@ -477,7 +491,7 @@ export default function ActivitiesPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-3 py-2 w-10">
+                  <th className="hidden sm:table-cell px-3 py-2 w-10">
                     <input
                       type="checkbox"
                       checked={allFilteredSelected}
@@ -489,19 +503,19 @@ export default function ActivitiesPage() {
                     />
                   </th>
                   {([
-                    ["date", "Date", "text-left"],
-                    ["name", "Name", "text-left"],
-                    ["distance", "Km", "text-right"],
-                    ["elevationGain", "Elev (m)", "text-right"],
-                    ["movingTime", "Moving", "text-left"],
-                    ["elapsedTime", "Elapsed", "text-left"],
-                    ["eventType", "Type", "text-left"],
-                    ["homologationNumber", "Homologation", "text-left"],
-                  ] as [SortKey, string, string][]).map(([key, label, align]) => (
+                    ["date", "Date", "text-left", false],
+                    ["name", "Name", "text-left", false],
+                    ["distance", "Km", "text-right", false],
+                    ["elevationGain", "Elev (m)", "text-right", true],
+                    ["movingTime", "Moving", "text-left", true],
+                    ["elapsedTime", "Elapsed", "text-left", true],
+                    ["eventType", "Type", "text-left", false],
+                    ["homologationNumber", "Homologation", "text-left", true],
+                  ] as [SortKey, string, string, boolean][]).map(([key, label, align, mobileHidden]) => (
                     <th
                       key={key}
                       onClick={() => handleSort(key)}
-                      className={`px-3 py-2 ${align} text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer select-none hover:text-gray-700`}
+                      className={`${mobileHidden ? "hidden sm:table-cell" : ""} px-3 py-2 ${align} text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer select-none hover:text-gray-700`}
                     >
                       {label}
                       {sortKey === key && (
@@ -509,13 +523,13 @@ export default function ActivitiesPage() {
                       )}
                     </th>
                   ))}
-                  <th className="px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
+                  <th className="hidden sm:table-cell px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
                     Awards
                   </th>
-                  <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  <th className="hidden sm:table-cell px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                     Start
                   </th>
-                  <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  <th className="hidden sm:table-cell px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                     {/* edit */}
                   </th>
                 </tr>
@@ -531,9 +545,9 @@ export default function ActivitiesPage() {
                     refreshing={refreshing.has(a.stravaId)}
                     refreshError={refreshErrors.get(a.stravaId) ?? null}
                     isExpanded={expandedId === a.stravaId}
-                    onToggleExpand={() => setExpandedId((prev) => prev === a.stravaId ? null : a.stravaId)}
+                    onToggleExpand={() => handleToggleExpand(a.stravaId)}
                     isEditing={editingId === a.stravaId}
-                    onEditingChange={(editing) => setEditingId(editing ? a.stravaId : null)}
+                    onEditingChange={(editing) => handleEditingChange(a.stravaId, editing)}
                   />
                 ))}
               </tbody>
@@ -567,16 +581,18 @@ export default function ActivitiesPage() {
         </div>
       )}
 
-      <BulkActionBar
-        selectedCount={selectedIds.size}
-        onConfirm={handleBulkConfirm}
-        onSetType={handleBulkSetType}
-        onSetDnf={handleBulkSetDnf}
-        onExcludeFromAwards={handleBulkExcludeFromAwards}
-        onIncludeInAwards={handleBulkIncludeInAwards}
-        onRefresh={handleBulkRefresh}
-        onClear={clearSelection}
-      />
+      <div className="hidden sm:block">
+        <BulkActionBar
+          selectedCount={selectedIds.size}
+          onConfirm={handleBulkConfirm}
+          onSetType={handleBulkSetType}
+          onSetDnf={handleBulkSetDnf}
+          onExcludeFromAwards={handleBulkExcludeFromAwards}
+          onIncludeInAwards={handleBulkIncludeInAwards}
+          onRefresh={handleBulkRefresh}
+          onClear={clearSelection}
+        />
+      </div>
     </div>
   );
 }
