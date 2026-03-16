@@ -447,3 +447,25 @@ describe("checkBrevetKm — award eligibility", () => {
     expect(result.get(season)?.total).toBe(200);
   });
 });
+
+describe("activitySeason", () => {
+  it("puts January in the current-year season", () => {
+    expect(activitySeason("2025-01-15")).toBe("2024-25");
+  });
+
+  it("puts October in the current-year season", () => {
+    expect(activitySeason("2025-10-31")).toBe("2024-25");
+  });
+
+  it("puts November in the next-year season", () => {
+    expect(activitySeason("2025-11-01")).toBe("2025-26");
+  });
+
+  it("puts December in the next-year season", () => {
+    expect(activitySeason("2025-12-31")).toBe("2025-26");
+  });
+
+  it("puts June in the current-year season", () => {
+    expect(activitySeason("2025-06-15")).toBe("2024-25");
+  });
+});
