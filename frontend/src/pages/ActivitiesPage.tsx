@@ -185,7 +185,7 @@ export default function ActivitiesPage() {
     if (!activities) return [];
     const set = new Set<string>();
     for (const a of activities) {
-      set.add(activitySeason(String(a.date).slice(0, 10)));
+      set.add(activitySeason(a.date instanceof Date ? a.date.toISOString().slice(0, 10) : String(a.date).slice(0, 10)));
     }
     return Array.from(set).sort((a, b) => b.localeCompare(a));
   }, [activities]);
@@ -198,7 +198,7 @@ export default function ActivitiesPage() {
         if (d.getFullYear() !== Number(yearFilter)) return false;
       }
       if (seasonFilter !== "all") {
-        const season = activitySeason(String(a.date).slice(0, 10));
+        const season = activitySeason(a.date instanceof Date ? a.date.toISOString().slice(0, 10) : String(a.date).slice(0, 10));
         if (season !== seasonFilter) return false;
       }
       if (activeFilters.has("audax") && a.eventType === null) return false;

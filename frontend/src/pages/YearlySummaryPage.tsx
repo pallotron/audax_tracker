@@ -30,7 +30,7 @@ export default function YearlySummaryPage() {
     () =>
       [
         ...new Set(
-          audaxActivities.map((a) => activitySeason(String(a.date).slice(0, 10)))
+          audaxActivities.map((a) => activitySeason(a.date instanceof Date ? a.date.toISOString().slice(0, 10) : String(a.date).slice(0, 10)))
         ),
       ].sort((a, b) => b.localeCompare(a)),
     [audaxActivities],
@@ -53,7 +53,7 @@ export default function YearlySummaryPage() {
   const seasonActivities = useMemo(
     () =>
       audaxActivities
-        .filter((a) => activitySeason(String(a.date).slice(0, 10)) === activeSeason)
+        .filter((a) => activitySeason(a.date instanceof Date ? a.date.toISOString().slice(0, 10) : String(a.date).slice(0, 10)) === activeSeason)
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
     [audaxActivities, activeSeason],
   );
@@ -75,7 +75,7 @@ export default function YearlySummaryPage() {
   const seasonStats = useMemo(() => {
     return seasons.map((season) => {
       const sa = audaxActivities.filter(
-        (a) => activitySeason(String(a.date).slice(0, 10)) === season
+        (a) => activitySeason(a.date instanceof Date ? a.date.toISOString().slice(0, 10) : String(a.date).slice(0, 10)) === season
       );
       return {
         season,
@@ -113,7 +113,7 @@ export default function YearlySummaryPage() {
         <h1 className="text-2xl font-bold text-gray-900">
           Audax {mode === "season" ? "Season" : "Yearly"} Summary
         </h1>
-        {years.length > 1 && (
+        {(mode === "year" ? years.length > 1 : seasons.length > 1) && (
           <button
             onClick={() => setShowComparison((v) => !v)}
             className="text-sm text-orange-600 hover:text-orange-700 font-medium"
@@ -132,7 +132,7 @@ export default function YearlySummaryPage() {
         <div className="space-y-2">
           <div className="flex gap-1">
             <button
-              onClick={() => setMode("year")}
+              onClick={() => { setMode("year"); setShowComparison(false); }}
               className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                 mode === "year"
                   ? "bg-gray-700 text-white"
@@ -142,7 +142,7 @@ export default function YearlySummaryPage() {
               Year
             </button>
             <button
-              onClick={() => setMode("season")}
+              onClick={() => { setMode("season"); setShowComparison(false); }}
               className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                 mode === "season"
                   ? "bg-orange-500 text-white"
