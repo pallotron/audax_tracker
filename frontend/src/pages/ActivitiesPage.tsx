@@ -8,6 +8,7 @@ import { ActivityRow } from "../components/ActivityRow";
 import { BulkActionBar } from "../components/BulkActionBar";
 import { ClassificationLegend } from "../components/EventTypeBadge";
 import { formatDuration } from "../utils/formatDuration";
+import { activitySeason } from "../awards/awards";
 
 const AUDAX_EVENT_TYPES_ROW1: NonNullable<EventType>[] = [
   "BRM200",
@@ -70,6 +71,7 @@ export default function ActivitiesPage() {
   // All filter state lives in the URL
   const textFilter = searchParams.get("q") ?? "";
   const yearFilter = searchParams.get("year") ?? "all";
+  const seasonFilter = searchParams.get("season") ?? "all";
   const selectedTypes = useMemo(
     () => new Set(searchParams.getAll("type")),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -105,7 +107,30 @@ export default function ActivitiesPage() {
   };
 
   const handleYearChange = (value: string) => {
-    updateParam("year", value === "all" ? null : value);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value === "all") {
+        next.delete("year");
+      } else {
+        next.set("year", value);
+        next.delete("season"); // mutually exclusive
+      }
+      return next;
+    }, { replace: true });
+    resetPage();
+  };
+
+  const handleSeasonChange = (value: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value === "all") {
+        next.delete("season");
+      } else {
+        next.set("season", value);
+        next.delete("year"); // mutually exclusive
+      }
+      return next;
+    }, { replace: true });
     resetPage();
   };
 
@@ -156,12 +181,25 @@ export default function ActivitiesPage() {
     return Array.from(set).sort((a, b) => b - a);
   }, [activities]);
 
+  const seasons = useMemo(() => {
+    if (!activities) return [];
+    const set = new Set<string>();
+    for (const a of activities) {
+      set.add(activitySeason(a.date instanceof Date ? a.date.toISOString() : String(a.date)));
+    }
+    return Array.from(set).sort((a, b) => b.localeCompare(a));
+  }, [activities]);
+
   const filtered = useMemo(() => {
     if (!activities) return [];
     let result = activities.filter((a) => {
       if (yearFilter !== "all") {
         const d = a.date instanceof Date ? a.date : new Date(a.date);
         if (d.getFullYear() !== Number(yearFilter)) return false;
+      }
+      if (seasonFilter !== "all") {
+        const season = activitySeason(a.date instanceof Date ? a.date.toISOString() : String(a.date));
+        if (season !== seasonFilter) return false;
       }
       if (activeFilters.has("audax") && a.eventType === null) return false;
       if (activeFilters.has("needsConfirm") && !(a.needsConfirmation && !a.manualOverride)) return false;
@@ -185,7 +223,7 @@ export default function ActivitiesPage() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return result;
-  }, [activities, yearFilter, selectedTypes, activeFilters, textFilter, sortKey, sortDir]);
+  }, [activities, yearFilter, seasonFilter, selectedTypes, activeFilters, textFilter, sortKey, sortDir]);
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paged = filtered.slice(page * pageSize, (page + 1) * pageSize);
@@ -329,7 +367,23 @@ export default function ActivitiesPage() {
               ))}
             </select>
           </div>
-          {(textFilter || yearFilter !== "all" || selectedTypes.size > 0 || activeFilters.size > 0) && (
+          <div>
+            <label htmlFor="season-filter" className="mr-2 text-sm font-medium text-gray-700">
+              Season:
+            </label>
+            <select
+              id="season-filter"
+              value={seasonFilter}
+              onChange={(e) => handleSeasonChange(e.target.value)}
+              className="rounded border border-gray-300 px-2 py-1 text-sm"
+            >
+              <option value="all">All seasons</option>
+              {seasons.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+          {(textFilter || yearFilter !== "all" || seasonFilter !== "all" || selectedTypes.size > 0 || activeFilters.size > 0) && (
             <button
               onClick={() => { setSearchParams({}, { replace: true }); resetPage(); }}
               className="text-sm text-gray-500 hover:text-gray-700 underline"
