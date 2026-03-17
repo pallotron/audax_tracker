@@ -102,4 +102,21 @@ describe("ActivityRow", () => {
     await userEvent.click(within(getSecondaryRow()).getByRole("button", { name: /cancel/i }));
     expect(onEditingChange).toHaveBeenCalledWith(false);
   });
+
+  it("shows '✓ counting' for a normal award-eligible ride", () => {
+    renderRow();
+    expect(within(getSecondaryRow()).getByText(/✓ counting/i)).toBeInTheDocument();
+  });
+
+  it("shows '— n/a' for a DNF ride instead of award status", () => {
+    renderRow({ activity: { ...mockActivity, dnf: true } });
+    expect(within(getSecondaryRow()).getByText(/— n\/a/i)).toBeInTheDocument();
+    expect(within(getSecondaryRow()).queryByText(/counting/i)).not.toBeInTheDocument();
+  });
+
+  it("shows '— n/a' for a non-audax ride (null eventType) instead of award status", () => {
+    renderRow({ activity: { ...mockActivity, eventType: null, classificationSource: "manual", manualOverride: false } });
+    expect(within(getSecondaryRow()).getByText(/— n\/a/i)).toBeInTheDocument();
+    expect(within(getSecondaryRow()).queryByText(/counting/i)).not.toBeInTheDocument();
+  });
 });

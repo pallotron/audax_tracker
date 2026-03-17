@@ -50,6 +50,11 @@ function AwardsStatusIcon({ activity, onExclude, onInclude, onConfirm }: AwardsS
   const isUnconfirmed = activity.needsConfirmation && !activity.manualOverride && !activity.excludeFromAwards;
   const isExcluded = activity.excludeFromAwards;
 
+  // DNF rides and non-audax rides (no event type) are not award-eligible — show a neutral dash
+  if (activity.dnf || !activity.eventType) {
+    return <span className="text-gray-300 text-sm font-bold w-5 text-center inline-block" title="Not applicable">—</span>;
+  }
+
   if (isUnconfirmed) {
     return (
       <div className="relative">
@@ -163,7 +168,9 @@ export function ActivityRow({
 
   const isUnconfirmed = activity.needsConfirmation && !activity.manualOverride && !activity.excludeFromAwards;
   const isExcluded = activity.excludeFromAwards;
-  const awardStatusText = isUnconfirmed
+  const awardStatusText = activity.dnf || !activity.eventType
+    ? "— n/a"
+    : isUnconfirmed
     ? "? needs confirmation"
     : isExcluded
     ? "✕ excluded"

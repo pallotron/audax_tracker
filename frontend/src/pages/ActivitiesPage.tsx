@@ -30,15 +30,27 @@ const AUDAX_EVENT_TYPES_ROW2: NonNullable<EventType>[] = [
 ];
 
 const SHOW_ONLY_OPTIONS = [
-  { id: "audax", label: "Audax" },
-  { id: "needsConfirm", label: "Needs confirmation" },
-  { id: "dnf", label: "DNF" },
-  { id: "noHomologation", label: "Missing homologation #" },
-  { id: "awardsEligible", label: "Awards eligible" },
-  { id: "noPermanents", label: "Exclude permanents" },
+  { id: "audax",           label: "Audax",                 negLabel: "Non-audax" },
+  { id: "needsConfirm",    label: "Needs confirmation",    negLabel: "Confirmed only" },
+  { id: "dnf",             label: "DNF",                   negLabel: "Exclude DNF" },
+  { id: "noHomologation",  label: "Missing homologation #", negLabel: "Has homologation #" },
+  { id: "awardsEligible",  label: "Awards eligible",       negLabel: "Not eligible" },
+  { id: "noPermanents",    label: "Exclude permanents",    negLabel: "Only permanents" },
 ] as const;
 
 type ShowOnlyId = typeof SHOW_ONLY_OPTIONS[number]["id"];
+type FilterMode = "include" | "exclude";
+
+function matchesFilter(a: Activity, id: ShowOnlyId, mode: FilterMode): boolean {
+  switch (id) {
+    case "audax":          return mode === "include" ? a.eventType !== null : a.eventType === null;
+    case "needsConfirm":   return mode === "include" ? (a.needsConfirmation && !a.manualOverride) : !(a.needsConfirmation && !a.manualOverride);
+    case "dnf":            return mode === "include" ? a.dnf : !a.dnf;
+    case "noHomologation": return mode === "include" ? (a.eventType !== null && !a.homologationNumber) : a.homologationNumber !== null;
+    case "awardsEligible": return mode === "include" ? (!a.dnf && a.eventType !== null && !a.excludeFromAwards) : (a.dnf || a.eventType === null || a.excludeFromAwards);
+    case "noPermanents":   return mode === "include" ? a.eventType !== "Permanent" : a.eventType === "Permanent";
+  }
+}
 
 type SortKey = "date" | "name" | "distance" | "elevationGain" | "movingTime" | "elapsedTime" | "eventType" | "homologationNumber";
 type SortDir = "asc" | "desc";
@@ -78,7 +90,17 @@ export default function ActivitiesPage() {
     [searchParams.toString()]
   );
   const activeFilters = useMemo(
-    () => new Set((searchParams.get("filter") ?? "").split(",").filter(Boolean) as ShowOnlyId[]),
+    () => {
+      const map = new Map<ShowOnlyId, FilterMode>();
+      for (const part of (searchParams.get("filter") ?? "").split(",").filter(Boolean)) {
+        const negated = part.startsWith("!");
+        const id = (negated ? part.slice(1) : part) as ShowOnlyId;
+        if (SHOW_ONLY_OPTIONS.some((o) => o.id === id)) {
+          map.set(id, negated ? "exclude" : "include");
+        }
+      }
+      return map;
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [searchParams.toString()]
   );
@@ -158,9 +180,27 @@ export default function ActivitiesPage() {
   const toggleShowOnly = useCallback((id: ShowOnlyId) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      const filters = new Set((prev.get("filter") ?? "").split(",").filter(Boolean));
-      if (filters.has(id)) filters.delete(id); else filters.add(id);
-      if (filters.size === 0) next.delete("filter"); else next.set("filter", [...filters].join(","));
+      const filters = new Map<ShowOnlyId, FilterMode>();
+      for (const part of (prev.get("filter") ?? "").split(",").filter(Boolean)) {
+        const negated = part.startsWith("!");
+        const fid = (negated ? part.slice(1) : part) as ShowOnlyId;
+        if (SHOW_ONLY_OPTIONS.some((o) => o.id === fid)) filters.set(fid, negated ? "exclude" : "include");
+      }
+      // cycle: off → include → exclude → off
+      const current = filters.get(id);
+      if (!current) filters.set(id, "include");
+      else if (current === "include") filters.set(id, "exclude");
+      else filters.delete(id);
+      // co-activate audax when enabling a filter that only makes sense for audax rides
+      const IMPLIES_AUDAX: ShowOnlyId[] = ["dnf", "noHomologation", "awardsEligible", "noPermanents"];
+      if (IMPLIES_AUDAX.includes(id) && filters.get(id) === "include" && !filters.has("audax")) {
+        filters.set("audax", "include");
+      }
+      if (filters.size === 0) {
+        next.delete("filter");
+      } else {
+        next.set("filter", [...filters.entries()].map(([k, v]) => v === "exclude" ? `!${k}` : k).join(","));
+      }
       return next;
     }, { replace: true });
     resetPage();
@@ -201,12 +241,9 @@ export default function ActivitiesPage() {
         const season = activitySeason(a.date instanceof Date ? a.date.toISOString().slice(0, 10) : String(a.date).slice(0, 10));
         if (season !== seasonFilter) return false;
       }
-      if (activeFilters.has("audax") && a.eventType === null) return false;
-      if (activeFilters.has("needsConfirm") && !(a.needsConfirmation && !a.manualOverride)) return false;
-      if (activeFilters.has("dnf") && !a.dnf) return false;
-      if (activeFilters.has("noHomologation") && !(a.eventType !== null && !a.homologationNumber)) return false;
-      if (activeFilters.has("awardsEligible") && a.excludeFromAwards) return false;
-      if (activeFilters.has("noPermanents") && a.eventType === "Permanent") return false;
+      for (const [id, mode] of activeFilters) {
+        if (!matchesFilter(a, id, mode)) return false;
+      }
       if (selectedTypes.size > 0) {
         const typeKey = a.eventType ?? "__null__";
         if (!selectedTypes.has(typeKey)) return false;
@@ -396,19 +433,29 @@ export default function ActivitiesPage() {
         {/* Row 2: show-only chips */}
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-sm font-medium text-gray-700 mr-1">Filters:</span>
-          {SHOW_ONLY_OPTIONS.map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => toggleShowOnly(id)}
-              className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
-                activeFilters.has(id)
-                  ? "bg-orange-500 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+          <span className="inline-flex items-center gap-2 text-xs text-gray-400 mr-2">
+            <span className="inline-flex items-center gap-1"><span className="inline-block rounded-full w-2 h-2 bg-orange-500" />show only</span>
+            <span className="inline-flex items-center gap-1"><span className="inline-block rounded-full w-2 h-2 bg-red-500" />exclude</span>
+          </span>
+          {SHOW_ONLY_OPTIONS.map(({ id, label, negLabel }) => {
+            const mode = activeFilters.get(id);
+            return (
+              <button
+                key={id}
+                onClick={() => toggleShowOnly(id)}
+                title={mode === "include" ? "Click to negate" : mode === "exclude" ? "Click to clear" : "Click to activate"}
+                className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                  mode === "include"
+                    ? "bg-orange-500 text-white"
+                    : mode === "exclude"
+                    ? "bg-red-500 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {mode === "exclude" ? negLabel : label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Type chips */}
@@ -567,7 +614,7 @@ export default function ActivitiesPage() {
                     </th>
                   ))}
                   <th className="hidden sm:table-cell px-3 py-2 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Awards
+                    Eligible
                   </th>
                   <th className="hidden sm:table-cell px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                     Start
