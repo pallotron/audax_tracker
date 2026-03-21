@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import appIcon from "../assets/app-icon.png";
+import connectWithStrava from "../assets/btn_strava_connect_with_orange.svg";
+import cptblWithStrava from "../assets/api_logo_cptblWith_strava_horiz_orange.svg";
 import angeloPhoto from "../assets/angelo.jpeg";
 import { useAuth } from "../context/AuthContext";
 import { getStravaAuthUrl } from "../strava/auth";
@@ -224,10 +226,12 @@ export default function AboutPage() {
         <section>
           <h2 className="mb-2 text-xl font-semibold text-gray-800">Privacy</h2>
           <p className="text-gray-600">
-            By default, all your activity data is stored locally in your browser using IndexedDB.
-            Nothing is sent to any external server beyond the initial Strava sync. Clearing your
-            browser data will remove all stored activities. Optionally, you can enable cloud sync
-            (see below) to back up your annotations across devices.
+            All your Strava activity data is fetched directly from Strava and stored only in your
+            own browser using IndexedDB — it never leaves your device and is never sent to any
+            external server. This is your own data about your own activities, stored locally for
+            your personal use only. Clearing your browser data will remove all stored activities.
+            Optionally, you can enable cloud sync (see below) to back up your annotations across
+            devices.
           </p>
         </section>
 
@@ -235,8 +239,10 @@ export default function AboutPage() {
           <h2 className="mb-2 text-xl font-semibold text-gray-800">Cloud Sync</h2>
           <p className="mb-3 text-gray-600">
             Optionally sync your activity annotations (event types, DNF flags, homologation numbers)
-            across devices. Your Strava activity data, GPS tracks, and personal information are never
-            stored in the cloud — only the annotations you create within Audax Tracker.
+            across devices. The cloud sync stores <strong>only the annotations you create within
+            Audax Tracker</strong> — your Strava activity data, names, distances, GPS tracks, and
+            personal information are never stored on any server. Stored data consists solely of
+            Strava activity IDs (used as references) and your own audax-specific metadata.
           </p>
           {isAuthenticated && (cloudSync.enabled ? (
             <button
@@ -270,8 +276,8 @@ export default function AboutPage() {
 
         <section>
           <h2 className="mb-2 text-xl font-semibold text-gray-800">Strava API Policy</h2>
-          <p className="text-gray-600">
-            Audax Tracker complies with the{" "}
+          <p className="mb-4 text-gray-600">
+            Audax Tracker is built in compliance with the{" "}
             <a
               href="https://www.strava.com/legal/api"
               target="_blank"
@@ -279,13 +285,39 @@ export default function AboutPage() {
               className="text-orange-600 hover:underline"
             >
               Strava API Agreement
+            </a>{" "}
+            and{" "}
+            <a
+              href="https://developers.strava.com/guidelines/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-orange-600 hover:underline"
+            >
+              Developer Guidelines
             </a>
-            . Strava activity data — including names, distances, GPS tracks, and other Strava content —
-            is stored only in your local browser and is never uploaded to any external server. The
-            optional cloud sync feature stores only user-generated annotations: data you have created
-            within Audax Tracker, not data retrieved from Strava. You can permanently delete your
-            cloud data at any time using the Cloud Sync settings above.
+            . Key points:
           </p>
+          <ul className="space-y-2 text-sm text-gray-600 list-none">
+            {[
+              "Your Strava data is only ever disclosed to you — no other user can see your activities.",
+              "Strava activity data is stored exclusively in your own browser (IndexedDB). It is never uploaded to any server operated by this application.",
+              "The optional cloud sync stores only user-generated annotations (event type, DNF status, homologation number). No Strava activity data — names, distances, GPS tracks, or any other Strava content — is stored server-side.",
+              "Authentication uses OAuth 2.0. The application requests only read access (read, activity:read_all) and never asks for write permissions.",
+              "The OAuth client secret is held exclusively server-side and is never exposed to the browser.",
+              "All communication with Strava and with this application's backend uses HTTPS.",
+              "Strava data is not used for machine learning, advertising, or any form of aggregation or analytics beyond your own personal award tracking.",
+              "You can revoke access at any time from your Strava settings. Upon revoking, all locally stored data can be cleared by clearing your browser data. Cloud sync data can be permanently deleted from the Cloud Sync section above.",
+              "Activities deleted from Strava are automatically removed from local storage on the next full sync (performed at least every 24 hours).",
+            ].map((point) => (
+              <li key={point} className="flex gap-2">
+                <span className="mt-0.5 text-orange-500 shrink-0">✓</span>
+                <span>{point}</span>
+              </li>
+            ))}
+          </ul>
+          <a href="https://www.strava.com" target="_blank" rel="noopener noreferrer" className="mt-6 inline-block hover:opacity-80">
+            <img src={cptblWithStrava} alt="Compatible with Strava" className="h-7" />
+          </a>
         </section>
       </div>
 
@@ -298,11 +330,8 @@ export default function AboutPage() {
             Go to Dashboard
           </Link>
         ) : (
-          <a
-            href={authUrl}
-            className="rounded-lg bg-orange-500 px-6 py-3 text-lg font-semibold text-white shadow hover:bg-orange-600"
-          >
-            Connect with Strava
+          <a href={authUrl} className="hover:opacity-80">
+            <img src={connectWithStrava} alt="Connect with Strava" height={48} className="h-12" />
           </a>
         )}
       </div>

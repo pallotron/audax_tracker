@@ -193,15 +193,17 @@ export function ActivityRow({
           {formatDate(date)}
         </td>
         {/* col 3: name — always visible */}
-        <td className="max-w-xs truncate px-3 py-2 text-sm text-gray-900">
+        <td className="max-w-xs px-3 py-2 text-sm text-gray-900">
+          <div className="truncate">{activity.name}</div>
           <a
             href={activity.sourceUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="hover:text-orange-600 hover:underline"
+            className="text-xs font-bold underline hover:opacity-80"
+            style={{ color: "#FC5200" }}
             onClick={(e) => e.stopPropagation()}
           >
-            {activity.name}
+            View on Strava
           </a>
         </td>
         {/* col 4: distance — hidden on mobile */}

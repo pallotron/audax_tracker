@@ -6,8 +6,10 @@ import { geocodeActivities } from "../geo/geocoder";
 import { useCloudSync, type CloudSyncHook } from "../cloud/useCloudSync";
 
 const LAST_SYNC_KEY = "audax_last_sync";
+const LAST_FULL_SYNC_KEY = "audax_last_full_sync";
 const CHECK_COOLDOWN_KEY = "audax_last_check";
 const CHECK_COOLDOWN_MS = 60_000;
+const FULL_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface SyncContextValue {
   sync: () => Promise<void>;
@@ -90,7 +92,13 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     try {
       const token = await getAccessToken();
 
-      const afterEpoch = computeAfterEpoch(lastSync);
+      const lastFullSync = localStorage.getItem(LAST_FULL_SYNC_KEY);
+      const needsFullSync =
+        !lastSync ||
+        !lastFullSync ||
+        Date.now() - new Date(lastFullSync).getTime() > FULL_SYNC_INTERVAL_MS;
+
+      const afterEpoch = needsFullSync ? undefined : computeAfterEpoch(lastSync);
 
       const activities = await fetchAllActivities(
         token,
@@ -104,7 +112,20 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           const existing = await db.activities.get(activity.stravaId);
           await db.activities.put(applyActivityUpsert(activity, existing));
         }
+
+        if (needsFullSync) {
+          const stravaIds = new Set(activities.map((a) => a.stravaId));
+          const localIds = await db.activities.toCollection().primaryKeys() as string[];
+          const toDelete = localIds.filter((id) => !stravaIds.has(id));
+          if (toDelete.length > 0) {
+            await db.activities.bulkDelete(toDelete);
+          }
+        }
       });
+
+      if (needsFullSync) {
+        localStorage.setItem(LAST_FULL_SYNC_KEY, new Date().toISOString());
+      }
 
       const now = new Date().toISOString();
       localStorage.setItem(LAST_SYNC_KEY, now);
@@ -163,6 +184,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     try {
       const token = await getAccessToken();
       const activity = await fetchActivity(stravaId, token);
+      if (activity === null) {
+        await db.activities.delete(stravaId);
+        return;
+      }
       await db.transaction("rw", db.activities, async () => {
         const existing = await db.activities.get(stravaId);
         await db.activities.put(applyActivityUpsert(activity, existing));
