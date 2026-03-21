@@ -4,6 +4,7 @@
 
 # Audax Tracker
 
+[![Tests](https://github.com/pallotron/audax_tracker/actions/workflows/test.yml/badge.svg)](https://github.com/pallotron/audax_tracker/actions/workflows/test.yml)
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/angelofailla)
 
 A web app that pulls cycling activities from Strava, classifies qualifying audax/randonneuring events, and tracks progress toward a range of annual and lifetime awards.
