@@ -139,10 +139,14 @@ export async function fetchAllActivities(
   return activities;
 }
 
+/**
+ * Fetches a single activity. Returns null if the activity no longer exists on
+ * Strava (404), so callers can delete it locally.
+ */
 export async function fetchActivity(
   stravaId: string,
   accessToken: string
-): Promise<Activity> {
+): Promise<Activity | null> {
   const url = `${STRAVA_API}/activities/${stravaId}`;
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -154,6 +158,10 @@ export async function fetchActivity(
     throw new Error(
       `Strava rate limit reached. Try again in ~${minutes} minute${minutes !== 1 ? "s" : ""}.`
     );
+  }
+
+  if (response.status === 404) {
+    return null;
   }
 
   if (!response.ok) {
