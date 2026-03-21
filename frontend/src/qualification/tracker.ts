@@ -85,14 +85,6 @@ export const ACP_QUALIFYING_TYPES: NonNullable<EventType>[] = [
 ];
 
 /**
- * SR600 counts as BRM600 for series and award purposes.
- * This normalises the type before any series/distance checks.
- */
-function normalizeToSeries(et: NonNullable<EventType>): NonNullable<EventType> {
-  return et === "SR600" ? "BRM600" : et;
-}
-
-/**
  * Merges expiring events from multiple qualification checks,
  * combining the `affects` arrays for duplicate activities.
  */
@@ -172,9 +164,7 @@ export function checkBrmSeries(activities: QualifyingActivity[]): {
   met: boolean;
   missing: EventType[];
 } {
-  const present = new Set(
-    activities.map((a) => a.eventType ? normalizeToSeries(a.eventType as NonNullable<EventType>) : a.eventType)
-  );
+  const present = new Set(activities.map((a) => a.eventType));
   const missing = BRM_DISTANCES.filter((d) => !present.has(d));
   return {
     met: missing.length === 0,
@@ -194,7 +184,7 @@ export function countBrmSeries(activities: QualifyingActivity[]): number {
   }
   for (const a of activities) {
     if (!a.eventType) continue;
-    const et = normalizeToSeries(a.eventType as NonNullable<EventType>);
+    const et = a.eventType as NonNullable<EventType>;
     if (BRM_DISTANCES.includes(et)) {
       counts.set(et, (counts.get(et) ?? 0) + 1);
     }
@@ -235,12 +225,11 @@ function findExpiringEvents(
 
   if (expiring.length === 0) return [];
 
-  // Count occurrences of each event type in the window (SR600 normalised to BRM600)
+  // Count occurrences of each event type in the window
   const typeCounts = new Map<string, number>();
   for (const a of windowActivities) {
     if (a.eventType) {
-      const et = normalizeToSeries(a.eventType as NonNullable<EventType>);
-      typeCounts.set(et, (typeCounts.get(et) ?? 0) + 1);
+      typeCounts.set(a.eventType, (typeCounts.get(a.eventType) ?? 0) + 1);
     }
   }
 
@@ -256,11 +245,9 @@ function findExpiringEvents(
     if (["PBP", "Fleche", "RM1200+"].includes(et)) {
       isCritical = (typeCounts.get(et) ?? 0) <= 1;
     }
-    // BRM distances (including SR600 normalised to BRM600): critical if losing it
-    // drops below the required series count
-    else if (BRM_DISTANCES.includes(normalizeToSeries(et as NonNullable<EventType>))) {
-      const normalised = normalizeToSeries(et as NonNullable<EventType>);
-      const count = typeCounts.get(normalised) ?? 0;
+    // BRM distances: critical if losing this drops below the required series count
+    else if (BRM_DISTANCES.includes(et as NonNullable<EventType>)) {
+      const count = typeCounts.get(et) ?? 0;
       if (count <= requiredSeriesCount) {
         isCritical = true;
       }
@@ -307,7 +294,7 @@ export function checkAcp5000(
     );
     for (const a of sortedByDate) {
       if (!a.eventType) continue;
-      const et = normalizeToSeries(a.eventType as NonNullable<EventType>);
+      const et = a.eventType as NonNullable<EventType>;
       if (BRM_DISTANCES.includes(et)) {
         lastPerDistance.set(et, new Date(a.date));
         // Check if we have all distances now
@@ -326,7 +313,7 @@ export function checkAcp5000(
   );
   for (const a of sortedForBrm) {
     if (!a.eventType) continue;
-    const et = normalizeToSeries(a.eventType as NonNullable<EventType>);
+    const et = a.eventType as NonNullable<EventType>;
     if (BRM_DISTANCES.includes(et) && !seenDistances.has(et)) {
       seenDistances.add(et);
       brmSeriesActivities.push(a);
@@ -600,7 +587,7 @@ export function checkAcp10000(
     const counts: Record<string, number> = {};
     for (const a of activitiesForSeries) {
       if (!a.eventType) continue;
-      const et = normalizeToSeries(a.eventType as NonNullable<EventType>);
+      const et = a.eventType as NonNullable<EventType>;
       if (BRM_DISTANCES.includes(et)) {
         counts[et] = (counts[et] ?? 0) + 1;
         if (BRM_DISTANCES.every((d) => (counts[d] ?? 0) >= 2)) {
@@ -618,7 +605,7 @@ export function checkAcp10000(
   );
   for (const a of activitiesForSeriesDesc) {
     if (!a.eventType) continue;
-    const et = normalizeToSeries(a.eventType as NonNullable<EventType>);
+    const et = a.eventType as NonNullable<EventType>;
     if (BRM_DISTANCES.includes(et)) {
       const count = distCounts.get(et) ?? 0;
       if (count < 2) {

@@ -213,10 +213,17 @@ describe("fetchActivity", () => {
     await expect(fetchActivity("999", "fake-token")).rejects.toThrow(/rate limit/i);
   });
 
-  it("throws on non-OK response", async () => {
+  it("returns null on 404 (activity deleted from Strava)", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(null, { status: 404 })
     );
-    await expect(fetchActivity("999", "fake-token")).rejects.toThrow(/404/);
+    await expect(fetchActivity("999", "fake-token")).resolves.toBeNull();
+  });
+
+  it("throws on other non-OK responses", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(null, { status: 500 })
+    );
+    await expect(fetchActivity("999", "fake-token")).rejects.toThrow(/500/);
   });
 });
