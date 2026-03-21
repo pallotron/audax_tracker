@@ -1,4 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
+import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { db, type Activity } from "../db/database";
 import { UnconfirmedRidesNotice } from "../components/UnconfirmedRidesNotice";
@@ -57,6 +58,9 @@ function toAwards(a: Activity): AwardsActivity {
 }
 
 function TrophyBadge({ label, activities }: { label: string | number; activities?: AwardsActivity[] }) {
+  const listRef = useRef<HTMLUListElement>(null);
+  const [hasMore, setHasMore] = useState(false);
+
   const badge = (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800">
       <span className="text-lg leading-none">🏆</span> {label}
@@ -65,24 +69,53 @@ function TrophyBadge({ label, activities }: { label: string | number; activities
 
   if (!activities || activities.length === 0) return badge;
 
+  function handleScroll() {
+    const el = listRef.current;
+    if (!el) return;
+    setHasMore(el.scrollTop + el.clientHeight < el.scrollHeight - 2);
+  }
+
+  function handleMouseEnter() {
+    const el = listRef.current;
+    if (!el) return;
+    setHasMore(el.scrollHeight > el.clientHeight);
+  }
+
   return (
     <span className="group relative inline-block">
       <span className="inline-flex cursor-default items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800 hover:opacity-80">
         <span className="text-lg leading-none">🏆</span> {label}
       </span>
-      <div className="absolute left-0 z-10 mt-1 w-64 rounded-md border border-gray-200 bg-white p-2 shadow-xl opacity-0 transition-opacity group-hover:opacity-100">
-        <ul className="flex flex-col gap-1">
+      <div
+        className="absolute left-0 z-10 mt-1 w-72 rounded-md border border-gray-200 bg-white shadow-xl opacity-0 transition-opacity group-hover:opacity-100"
+        onMouseEnter={handleMouseEnter}
+      >
+        <ul
+          ref={listRef}
+          className="flex flex-col gap-1.5 max-h-64 overflow-y-auto p-2"
+          onScroll={handleScroll}
+        >
           {activities.map((a) => (
-            <li key={a.stravaId} className="truncate text-xs">
-              <span className="text-gray-400 mr-1.5 tabular-nums">
-                {new Date(a.date).toLocaleDateString("en-IE", { month: "short", year: "2-digit" })}
-              </span>
-              <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-orange-600 hover:underline" title={a.name}>
-                {a.name}
+            <li key={a.stravaId} className="text-xs">
+              <div className="flex gap-1.5">
+                <span className="text-gray-400 tabular-nums shrink-0">
+                  {new Date(a.date).toLocaleDateString("en-IE", { month: "short", year: "2-digit" })}
+                </span>
+                <span className="text-gray-700">{a.name}</span>
+              </div>
+              <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="ml-9 font-bold underline hover:opacity-80" style={{ color: "#FC5200" }}>
+                View on Strava
               </a>
             </li>
           ))}
         </ul>
+        {hasMore && (
+          <div className="flex justify-center py-1 border-t border-gray-100">
+            <svg className="h-4 w-4 text-gray-400 animate-bounce" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        )}
       </div>
     </span>
   );
@@ -329,9 +362,12 @@ export default function AwardsPage() {
                   >
                     <div className="font-medium text-gray-700">{dist}</div>
                     {assignment ? (
-                      <a href={assignment.activity.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-green-700 hover:underline">
-                        {assignment.activity.startCountry}
-                      </a>
+                      <>
+                        <div className="text-green-700">{assignment.activity.startCountry}</div>
+                        <a href={assignment.activity.sourceUrl} target="_blank" rel="noopener noreferrer" className="font-bold underline hover:opacity-80" style={{ color: "#FC5200" }}>
+                          View on Strava
+                        </a>
+                      </>
                     ) : (
                       <span className="text-gray-400">—</span>
                     )}
@@ -372,9 +408,12 @@ export default function AwardsPage() {
                   >
                     <div className="font-medium text-gray-700">{dist}</div>
                     {assignment ? (
-                      <a href={assignment.activity.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-green-700 hover:underline">
-                        {assignment.nation}
-                      </a>
+                      <>
+                        <div className="text-green-700">{assignment.nation}</div>
+                        <a href={assignment.activity.sourceUrl} target="_blank" rel="noopener noreferrer" className="font-bold underline hover:opacity-80" style={{ color: "#FC5200" }}>
+                          View on Strava
+                        </a>
+                      </>
                     ) : (
                       <span className="text-gray-400">—</span>
                     )}
@@ -404,8 +443,9 @@ export default function AwardsPage() {
                     <span className="text-gray-400 tabular-nums">
                       {new Date(a.date).toLocaleDateString("en-IE", { day: "numeric", month: "short", year: "numeric" })}
                     </span>
-                    <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="truncate text-orange-600 hover:underline">
-                      {a.name}
+                    <span className="truncate text-gray-800">{a.name}</span>
+                    <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="font-bold underline hover:opacity-80 shrink-0" style={{ color: "#FC5200" }}>
+                      View on Strava
                     </a>
                     {a.startCountry && (
                       <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">{a.startCountry}</span>

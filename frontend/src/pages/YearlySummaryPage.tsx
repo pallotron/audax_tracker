@@ -337,7 +337,16 @@ export default function YearlySummaryPage() {
                         {formatDate(new Date(activity.date))}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {activity.name}
+                        <div>{activity.name}</div>
+                        <a
+                          href={activity.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-bold underline hover:opacity-80"
+                          style={{ color: "#FC5200" }}
+                        >
+                          View on Strava
+                        </a>
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-900">
                         {Math.round(activity.distance)}

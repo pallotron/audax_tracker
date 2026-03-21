@@ -101,9 +101,10 @@ export default function RrtyPage() {
                     </div>
                     <ul className="mt-1 space-y-0.5">
                       {m.activities.map((a) => (
-                        <li key={a.stravaId} className="truncate text-xs text-green-700">
-                          <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:underline" title={`${a.name} (${Math.round(a.distance)} km)`}>
-                            {a.name}
+                        <li key={a.stravaId} className="text-xs text-green-700">
+                          <span className="truncate block" title={`${a.name} (${Math.round(a.distance)} km)`}>{a.name}</span>
+                          <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="font-bold underline hover:opacity-80" style={{ color: "#FC5200" }}>
+                            View on Strava
                           </a>
                         </li>
                       ))}

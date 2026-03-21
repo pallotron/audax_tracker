@@ -73,13 +73,13 @@ function RequirementCard({ label, requirement }: RequirementCardProps) {
                     {a.homologationNumber && (
                       <span className="font-mono text-gray-500">{a.homologationNumber}{" "}</span>
                     )}
-                    <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 hover:underline">
-                      {a.name}
-                    </a>
+                    {a.name}
                     {" "}
                     <span>({formatDate(new Date(a.date))})</span>
                     {" · "}
                     <span>{Math.round(a.distance)} km</span>
+                    {" · "}
+                    <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="font-bold underline hover:opacity-80" style={{ color: "#FC5200" }}>View on Strava</a>
                   </p>
                 ))}
               </div>
@@ -97,13 +97,13 @@ function RequirementCard({ label, requirement }: RequirementCardProps) {
               {a.homologationNumber && (
                 <span className="font-mono text-gray-500">{a.homologationNumber}{" "}</span>
               )}
-              <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 hover:underline">
-                {a.name}
-              </a>
+              {a.name}
               {" "}
               <span>({formatDate(new Date(a.date))})</span>
               {" · "}
               <span>{Math.round(a.distance)} km</span>
+              {" · "}
+              <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="font-bold underline hover:opacity-80" style={{ color: "#FC5200" }}>View on Strava</a>
             </p>
           ))}
         </div>
@@ -339,15 +339,9 @@ export default function QualificationDetailPage() {
             {status.expiringEvents.map((ev: ExpiringEvent) => (
               <li key={ev.stravaId} className="flex items-center gap-2 text-sm text-yellow-700">
                 <span className="font-medium">{ev.eventType}</span>
-                <a
-                  href={ev.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="truncate max-w-xs hover:text-yellow-900 hover:underline"
-                >
-                  {ev.name}
-                </a>
+                <span className="truncate max-w-xs">{ev.name}</span>
                 <span>({formatDate(ev.date)})</span>
+                <a href={ev.sourceUrl} target="_blank" rel="noopener noreferrer" className="font-bold underline hover:opacity-80 shrink-0" style={{ color: "#FC5200" }}>View on Strava</a>
                 <span className="text-yellow-600">
                   — expires {formatDate(ev.expiresAt)}
                 </span>
@@ -415,10 +409,10 @@ export default function QualificationDetailPage() {
                                 {d.homologationNumber && (
                                   <span className="font-mono text-gray-500">{d.homologationNumber}{" "}</span>
                                 )}
-                                <a href={d.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 hover:underline">
-                                  {d.name}
-                                </a>
+                                {d.name}
                                 {" "}({formatDate(d.date)})
+                                {" · "}
+                                <a href={d.sourceUrl} target="_blank" rel="noopener noreferrer" className="font-bold underline hover:opacity-80" style={{ color: "#FC5200" }}>View on Strava</a>
                               </p>
                             ))}
                           </div>
@@ -428,10 +422,10 @@ export default function QualificationDetailPage() {
                             {singleRide.homologationNumber && (
                               <span className="font-mono text-gray-500">{singleRide.homologationNumber}{" "}</span>
                             )}
-                            <a href={singleRide.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 hover:underline">
-                              {singleRide.name}
-                            </a>
+                            {singleRide.name}
                             {" "}({formatDate(singleRide.date)})
+                            {" · "}
+                            <a href={singleRide.sourceUrl} target="_blank" rel="noopener noreferrer" className="font-bold underline hover:opacity-80" style={{ color: "#FC5200" }}>View on Strava</a>
                           </p>
                         )}
                         {isDistance && r.requirement.matchingActivities.length > 0 && (
@@ -443,11 +437,11 @@ export default function QualificationDetailPage() {
                                 {a.homologationNumber && (
                                   <span className="font-mono text-gray-500">{a.homologationNumber}{" "}</span>
                                 )}
-                                <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gray-600 hover:underline">
-                                  {a.name}
-                                </a>
+                                {a.name}
                                 {" "}({formatDate(new Date(a.date))})
                                 {" · "}{Math.round(a.distance)} km
+                                {" · "}
+                                <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer" className="font-bold underline hover:opacity-80" style={{ color: "#FC5200" }}>View on Strava</a>
                               </p>
                             ))}
                           </div>
@@ -514,13 +508,15 @@ export default function QualificationDetailPage() {
                       {formatDate(new Date(activity.date))}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900">
+                      <div>{activity.name}</div>
                       <a
                         href={activity.sourceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="hover:text-orange-600 hover:underline"
+                        className="text-xs font-bold underline hover:opacity-80"
+                        style={{ color: "#FC5200" }}
                       >
-                        {activity.name}
+                        View on Strava
                       </a>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-900">
