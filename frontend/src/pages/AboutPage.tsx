@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import appIcon from "../assets/app-icon.png";
+import connectWithStrava from "../assets/btn_strava_connect_with_orange.svg";
+import cptblWithStrava from "../assets/api_logo_cptblWith_strava_horiz_orange.svg";
 import angeloPhoto from "../assets/angelo.jpeg";
 import { useAuth } from "../context/AuthContext";
 import { getStravaAuthUrl } from "../strava/auth";
@@ -286,6 +288,9 @@ export default function AboutPage() {
             within Audax Tracker, not data retrieved from Strava. You can permanently delete your
             cloud data at any time using the Cloud Sync settings above.
           </p>
+          <a href="https://www.strava.com" target="_blank" rel="noopener noreferrer" className="mt-4 inline-block hover:opacity-80">
+            <img src={cptblWithStrava} alt="Compatible with Strava" className="h-7" />
+          </a>
         </section>
       </div>
 
@@ -298,11 +303,8 @@ export default function AboutPage() {
             Go to Dashboard
           </Link>
         ) : (
-          <a
-            href={authUrl}
-            className="rounded-lg bg-orange-500 px-6 py-3 text-lg font-semibold text-white shadow hover:bg-orange-600"
-          >
-            Connect with Strava
+          <a href={authUrl} className="hover:opacity-80">
+            <img src={connectWithStrava} alt="Connect with Strava" height={48} className="h-12" />
           </a>
         )}
       </div>
