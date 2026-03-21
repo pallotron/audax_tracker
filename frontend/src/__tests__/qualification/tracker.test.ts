@@ -65,6 +65,19 @@ describe("checkAcp5000", () => {
     expect(result.brmSeries.missing).toContain("BRM1000");
   });
 
+  it("SR600 does NOT satisfy the BRM600 slot in the BRM series", () => {
+    const activities = [
+      makeActivity({ eventType: "BRM200", distance: 200 }),
+      makeActivity({ eventType: "BRM300", distance: 300 }),
+      makeActivity({ eventType: "BRM400", distance: 400 }),
+      makeActivity({ eventType: "SR600", distance: 620 }),
+      makeActivity({ eventType: "BRM1000", distance: 1000 }),
+    ];
+    const result = checkAcp5000(activities);
+    expect(result.brmSeries.met).toBe(false);
+    expect(result.brmSeries.missing).toContain("BRM600");
+  });
+
   it("detects PBP requirement", () => {
     const activities = [makeActivity({ eventType: "PBP", distance: 1200 })];
     const result = checkAcp5000(activities);
@@ -333,6 +346,19 @@ describe("checkAcp10000", () => {
     const result = checkAcp10000(activities);
     expect(result.pbp.met).toBe(true);
     expect(result.separateRm1200.met).toBe(true);
+  });
+
+  it("SR600 does NOT satisfy the BRM600 slot in the BRM series for R10000", () => {
+    const activities = [
+      makeActivity({ eventType: "BRM200", distance: 200 }),
+      makeActivity({ eventType: "BRM300", distance: 300 }),
+      makeActivity({ eventType: "BRM400", distance: 400 }),
+      makeActivity({ eventType: "SR600", distance: 620 }),
+      makeActivity({ eventType: "BRM1000", distance: 1000 }),
+    ];
+    const result = checkAcp10000(activities);
+    expect(result.twoBrmSeries.met).toBe(false);
+    expect(result.twoBrmSeries.details).toContain("BRM600");
   });
 
   it("requires two complete BRM series (one series → seriesCount=1, met=false)", () => {

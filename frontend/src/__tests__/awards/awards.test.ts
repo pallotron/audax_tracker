@@ -146,6 +146,29 @@ describe("checkSuperRandonneur", () => {
     expect(result.get("2024-25")?.met).toBe(true);
     expect(result.get("2024-25")?.distances.size).toBe(4);
   });
+
+  it("SR600 does NOT satisfy the BRM600 slot", () => {
+    const activities = [
+      makeActivity({ date: "2025-04-15", eventType: "BRM200", distance: 200 }),
+      makeActivity({ date: "2025-05-15", eventType: "BRM300", distance: 300 }),
+      makeActivity({ date: "2025-06-15", eventType: "BRM400", distance: 400 }),
+      makeActivity({ date: "2025-07-15", eventType: "SR600", distance: 600 }),
+    ];
+    const result = checkSuperRandonneur(activities);
+    expect(result.get("2024-25")?.met).toBe(false);
+  });
+
+  it("SR600 alongside BRM600 does not prevent the award being met", () => {
+    const activities = [
+      makeActivity({ date: "2025-04-15", eventType: "BRM200", distance: 200 }),
+      makeActivity({ date: "2025-05-15", eventType: "BRM300", distance: 300 }),
+      makeActivity({ date: "2025-06-15", eventType: "BRM400", distance: 400 }),
+      makeActivity({ date: "2025-07-15", eventType: "BRM600", distance: 600 }),
+      makeActivity({ date: "2025-08-15", eventType: "SR600", distance: 620 }),
+    ];
+    const result = checkSuperRandonneur(activities);
+    expect(result.get("2024-25")?.met).toBe(true);
+  });
 });
 
 // ── 4 Provinces ─────────────────────────────────────────────────────────────
