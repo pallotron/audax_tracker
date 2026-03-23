@@ -15,7 +15,8 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 export default function Layout() {
   const { isAuthenticated, tokens, logout } = useAuth();
-  const { geocoding, cloudSync, sync, syncing, checking, hasPending, progress, rateLimitWait, lastSync } = useSyncContext();
+  const { geocoding, cloudSync, sync, syncing, checking, pendingCount, progress, rateLimitWait, lastSync } = useSyncContext();
+  const hasPending = pendingCount > 0;
   const [showConsentDialog, setShowConsentDialog] = useState(false);
   const [showDisableDialog, setShowDisableDialog] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -109,7 +110,7 @@ export default function Layout() {
                         </svg>
                         {progress ? `${progress.fetched} fetched` : rateLimitWait ? "Rate limited…" : "Syncing…"}
                       </>
-                    ) : checking ? "Checking…" : hasPending ? "Sync now" : "Sync"}
+                    ) : checking ? "Checking…" : hasPending ? `Sync now (${pendingCount === 200 ? "200+" : pendingCount})` : "Sync"}
                   </button>
                   </div>
                 </div>
@@ -204,7 +205,7 @@ export default function Layout() {
                         </svg>
                         {progress ? `${progress.fetched} fetched` : rateLimitWait ? "Rate limited…" : "Syncing…"}
                       </>
-                    ) : checking ? "Checking…" : hasPending ? "Sync now" : "Sync"}
+                    ) : checking ? "Checking…" : hasPending ? `Sync now (${pendingCount === 200 ? "200+" : pendingCount})` : "Sync"}
                   </button>
                   <a
                     href="https://ko-fi.com/angelofailla"

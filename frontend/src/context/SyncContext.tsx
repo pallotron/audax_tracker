@@ -1,6 +1,6 @@
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useRef, useState } from "react";
 import { useAuth } from "./AuthContext";
-import { fetchAllActivities, fetchActivity, hasNewActivities } from "../strava/client";
+import { fetchAllActivities, fetchActivity, fetchNewActivities, type StravaActivityResponse } from "../strava/client";
 import { db, type Activity } from "../db/database";
 import { geocodeActivities } from "../geo/geocoder";
 import { useCloudSync, type CloudSyncHook } from "../cloud/useCloudSync";
@@ -17,7 +17,7 @@ interface SyncContextValue {
   refreshActivity: (stravaId: string) => Promise<void>;
   syncing: boolean;
   checking: boolean;
-  hasPending: boolean;
+  pendingCount: number;
   refreshing: Set<string>;
   refreshErrors: Map<string, string>;
   progress: { fetched: number; total: number } | null;
@@ -71,7 +71,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const { getAccessToken } = useAuth();
   const [syncing, setSyncing] = useState(false);
   const [checking, setChecking] = useState(false);
-  const [hasPending, setHasPending] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
   const [progress, setProgress] = useState<{ fetched: number; total: number } | null>(null);
   const [rateLimitWait, setRateLimitWait] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +82,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [refreshing, setRefreshing] = useState<Set<string>>(new Set());
   const [refreshErrors, setRefreshErrors] = useState<Map<string, string>>(new Map());
   const cloudSync = useCloudSync();
+  // Cache from the last checkPending call so sync() can reuse the first page
+  // without a redundant API request.
+  const pendingCacheRef = useRef<{ raw: StravaActivityResponse[]; fetchedAt: number } | null>(null);
+  const PENDING_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
   const sync = useCallback(async () => {
     setSyncing(true);
@@ -100,11 +104,22 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
       const afterEpoch = needsFullSync ? undefined : computeAfterEpoch(lastSync);
 
+      // Reuse activities already fetched during checkPending if the cache is
+      // fresh and this is an incremental (not full) sync.
+      const cache = pendingCacheRef.current;
+      const cacheAge = cache ? Date.now() - cache.fetchedAt : Infinity;
+      const prefetched =
+        !needsFullSync && cache && cacheAge < PENDING_CACHE_TTL_MS
+          ? cache.raw
+          : undefined;
+      pendingCacheRef.current = null;
+
       const activities = await fetchAllActivities(
         token,
         afterEpoch,
         (fetched) => setProgress({ fetched, total: 0 }),
-        (waitSeconds) => setRateLimitWait(waitSeconds)
+        (waitSeconds) => setRateLimitWait(waitSeconds),
+        prefetched
       );
 
       await db.transaction("rw", db.activities, async () => {
@@ -130,7 +145,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       const now = new Date().toISOString();
       localStorage.setItem(LAST_SYNC_KEY, now);
       setLastSync(now);
-      setHasPending(false);
+      setPendingCount(0);
 
       // If cloud sync is enabled, re-apply cloud overrides now that the DB is
       // populated. This matters on a new device where the initial pull was a
@@ -164,8 +179,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       const afterEpoch = lastSync
         ? Math.floor(new Date(lastSync).getTime() / 1000)
         : 0;
-      const pending = await hasNewActivities(token, afterEpoch);
-      setHasPending(pending);
+      const raw = await fetchNewActivities(token, afterEpoch);
+      // Cache the raw response so sync() can reuse it as the first page.
+      pendingCacheRef.current = { raw, fetchedAt: Date.now() };
+      setPendingCount(raw.length);
       localStorage.setItem(CHECK_COOLDOWN_KEY, new Date().toISOString());
     } catch {
       // silently ignore — network or auth failure
@@ -206,7 +223,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <SyncContext.Provider
-      value={{ sync, checkPending, refreshActivity, syncing, checking, hasPending, refreshing, refreshErrors, progress, geocoding, rateLimitWait, error, lastSync, cloudSync }}
+      value={{ sync, checkPending, refreshActivity, syncing, checking, pendingCount, refreshing, refreshErrors, progress, geocoding, rateLimitWait, error, lastSync, cloudSync }}
     >
       {children}
     </SyncContext.Provider>

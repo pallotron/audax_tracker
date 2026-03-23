@@ -57,21 +57,22 @@ export function mapStravaActivity(raw: StravaActivityResponse): Activity {
 }
 
 /**
- * Lightweight check: returns true if Strava has any activities
- * newer than `afterEpoch`. Fetches only 1 result.
+ * Fetches up to one page of activities newer than `afterEpoch`.
+ * Returns the raw responses so callers can reuse them (avoiding a double-fetch
+ * when the result is immediately passed into fetchAllActivities).
  */
-export async function hasNewActivities(
+export async function fetchNewActivities(
   accessToken: string,
   afterEpoch: number
-): Promise<boolean> {
-  const params = new URLSearchParams({ per_page: "1", after: String(afterEpoch) });
+): Promise<StravaActivityResponse[]> {
+  const params = new URLSearchParams({ per_page: String(PAGE_SIZE), after: String(afterEpoch) });
   const response = await fetch(
     `${STRAVA_API}/athlete/activities?${params.toString()}`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
-  if (!response.ok) return false;
+  if (!response.ok) return [];
   const data = await response.json();
-  return Array.isArray(data) && data.length > 0;
+  return Array.isArray(data) ? data : [];
 }
 
 async function fetchPage(
@@ -112,12 +113,23 @@ export async function fetchAllActivities(
   accessToken: string,
   after?: number,
   onProgress?: (fetched: number, page: number) => void,
-  onRateLimit?: (waitSeconds: number) => void
+  onRateLimit?: (waitSeconds: number) => void,
+  prefetched?: StravaActivityResponse[]
 ): Promise<Activity[]> {
-  const activities: Activity[] = [];
-  let page = 1;
+  const activities: Activity[] = prefetched ? prefetched.map(mapStravaActivity) : [];
 
-  while (true) {
+  // If we have a full prefetched first page there may be more; start at page 2.
+  // If the prefetched page was partial (< PAGE_SIZE) we already have everything.
+  let page: number | null;
+  if (prefetched === undefined) {
+    page = 1;
+  } else {
+    // Report the prefetched activities as page 1 so progress is visible.
+    onProgress?.(activities.length, 1);
+    page = prefetched.length === PAGE_SIZE ? 2 : null;
+  }
+
+  while (page !== null) {
     const params = new URLSearchParams({
       page: String(page),
       per_page: String(PAGE_SIZE),
