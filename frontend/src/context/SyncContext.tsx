@@ -6,13 +6,12 @@ import { geocodeActivities } from "../geo/geocoder";
 import { useCloudSync, type CloudSyncHook } from "../cloud/useCloudSync";
 
 const LAST_SYNC_KEY = "audax_last_sync";
-const LAST_FULL_SYNC_KEY = "audax_last_full_sync";
 const CHECK_COOLDOWN_KEY = "audax_last_check";
 const CHECK_COOLDOWN_MS = 60_000;
-const FULL_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface SyncContextValue {
   sync: () => Promise<void>;
+  fullSync: () => Promise<void>;
   checkPending: () => Promise<void>;
   refreshActivity: (stravaId: string) => Promise<void>;
   syncing: boolean;
@@ -87,7 +86,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const pendingCacheRef = useRef<{ raw: StravaActivityResponse[]; fetchedAt: number } | null>(null);
   const PENDING_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-  const sync = useCallback(async () => {
+  const runSync = useCallback(async (full: boolean) => {
     setSyncing(true);
     setError(null);
     setProgress(null);
@@ -96,22 +95,15 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     try {
       const token = await getAccessToken();
 
-      const lastFullSync = localStorage.getItem(LAST_FULL_SYNC_KEY);
-      const needsFullSync =
-        !lastSync ||
-        !lastFullSync ||
-        Date.now() - new Date(lastFullSync).getTime() > FULL_SYNC_INTERVAL_MS;
+      // Full sync: fetch everything (no after), then delete stale local entries.
+      // Incremental sync: fetch only what's new since last sync.
+      const afterEpoch = full ? undefined : computeAfterEpoch(lastSync);
 
-      const afterEpoch = needsFullSync ? undefined : computeAfterEpoch(lastSync);
-
-      // Reuse activities already fetched during checkPending if the cache is
-      // fresh and this is an incremental (not full) sync.
-      const cache = pendingCacheRef.current;
+      // For incremental syncs, reuse activities already fetched during
+      // checkPending if the cache is fresh, saving one API call.
+      const cache = full ? null : pendingCacheRef.current;
       const cacheAge = cache ? Date.now() - cache.fetchedAt : Infinity;
-      const prefetched =
-        !needsFullSync && cache && cacheAge < PENDING_CACHE_TTL_MS
-          ? cache.raw
-          : undefined;
+      const prefetched = cache && cacheAge < PENDING_CACHE_TTL_MS ? cache.raw : undefined;
       pendingCacheRef.current = null;
 
       const activities = await fetchAllActivities(
@@ -128,7 +120,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           await db.activities.put(applyActivityUpsert(activity, existing));
         }
 
-        if (needsFullSync) {
+        // On a full sync (or the very first sync), remove activities no longer
+        // on Strava.
+        if (full || !lastSync) {
           const stravaIds = new Set(activities.map((a) => a.stravaId));
           const localIds = await db.activities.toCollection().primaryKeys() as string[];
           const toDelete = localIds.filter((id) => !stravaIds.has(id));
@@ -137,10 +131,6 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           }
         }
       });
-
-      if (needsFullSync) {
-        localStorage.setItem(LAST_FULL_SYNC_KEY, new Date().toISOString());
-      }
 
       const now = new Date().toISOString();
       localStorage.setItem(LAST_SYNC_KEY, now);
@@ -166,7 +156,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       setProgress(null);
       setRateLimitWait(null);
     }
-  }, [getAccessToken, lastSync]);
+  }, [getAccessToken, lastSync, cloudSync]);
+
+  const sync = useCallback(() => runSync(false), [runSync]);
+  const fullSync = useCallback(() => runSync(true), [runSync]);
 
   const checkPending = useCallback(async () => {
     const lastCheck = localStorage.getItem(CHECK_COOLDOWN_KEY);
@@ -223,7 +216,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <SyncContext.Provider
-      value={{ sync, checkPending, refreshActivity, syncing, checking, pendingCount, refreshing, refreshErrors, progress, geocoding, rateLimitWait, error, lastSync, cloudSync }}
+      value={{ sync, fullSync, checkPending, refreshActivity, syncing, checking, pendingCount, refreshing, refreshErrors, progress, geocoding, rateLimitWait, error, lastSync, cloudSync }}
     >
       {children}
     </SyncContext.Provider>

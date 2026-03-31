@@ -15,7 +15,7 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 export default function Layout() {
   const { isAuthenticated, tokens, logout } = useAuth();
-  const { geocoding, cloudSync, sync, syncing, checking, pendingCount, progress, rateLimitWait, lastSync } = useSyncContext();
+  const { geocoding, cloudSync, sync, fullSync, syncing, checking, pendingCount, progress, rateLimitWait, lastSync } = useSyncContext();
   const hasPending = pendingCount > 0;
   const [showConsentDialog, setShowConsentDialog] = useState(false);
   const [showDisableDialog, setShowDisableDialog] = useState(false);
@@ -90,6 +90,15 @@ export default function Layout() {
                     <span className="text-xs text-gray-400" title={new Date(lastSync).toLocaleString()}>
                       Synced {new Date(lastSync).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </span>
+                  )}
+                  {lastSync && !syncing && !checking && (
+                    <button
+                      onClick={fullSync}
+                      className="text-xs text-gray-400 hover:text-gray-600"
+                      title="Re-fetch all activities from Strava and remove any deleted ones"
+                    >
+                      Full refresh
+                    </button>
                   )}
                   <button
                     onClick={sync}
