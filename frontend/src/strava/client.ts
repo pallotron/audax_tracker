@@ -19,6 +19,21 @@ const STRAVA_API = "https://www.strava.com/api/v3";
 const PAGE_SIZE = 200;
 const MAX_RETRY_WAIT_SECONDS = 300;
 
+const CYCLING_SPORT_TYPES = new Set([
+  "Ride",
+  "VirtualRide",
+  "EBikeRide",
+  "EMountainBikeRide",
+  "GravelRide",
+  "MountainBikeRide",
+  "Handcycle",
+  "Velomobile",
+]);
+
+function isCyclingActivity(raw: StravaActivityResponse): boolean {
+  return CYCLING_SPORT_TYPES.has(raw.sport_type) || CYCLING_SPORT_TYPES.has(raw.type);
+}
+
 export function mapStravaActivity(raw: StravaActivityResponse): Activity {
   const distanceKm = raw.distance / 1000;
   const classification = classifyActivity({
@@ -72,7 +87,7 @@ export async function fetchNewActivities(
   );
   if (!response.ok) return [];
   const data = await response.json();
-  return Array.isArray(data) ? data : [];
+  return Array.isArray(data) ? data.filter(isCyclingActivity) : [];
 }
 
 async function fetchPage(
@@ -139,7 +154,7 @@ export async function fetchAllActivities(
     }
 
     const data = await fetchPage(accessToken, params, onRateLimit);
-    activities.push(...data.map(mapStravaActivity));
+    activities.push(...data.filter(isCyclingActivity).map(mapStravaActivity));
     onProgress?.(activities.length, page);
 
     if (data.length < PAGE_SIZE) {
