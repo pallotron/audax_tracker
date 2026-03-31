@@ -1,23 +1,22 @@
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useRef, useState } from "react";
 import { useAuth } from "./AuthContext";
-import { fetchAllActivities, fetchActivity, hasNewActivities } from "../strava/client";
+import { fetchAllActivities, fetchActivity, fetchNewActivities, type StravaActivityResponse } from "../strava/client";
 import { db, type Activity } from "../db/database";
 import { geocodeActivities } from "../geo/geocoder";
 import { useCloudSync, type CloudSyncHook } from "../cloud/useCloudSync";
 
 const LAST_SYNC_KEY = "audax_last_sync";
-const LAST_FULL_SYNC_KEY = "audax_last_full_sync";
 const CHECK_COOLDOWN_KEY = "audax_last_check";
 const CHECK_COOLDOWN_MS = 60_000;
-const FULL_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface SyncContextValue {
   sync: () => Promise<void>;
+  fullSync: () => Promise<void>;
   checkPending: () => Promise<void>;
   refreshActivity: (stravaId: string) => Promise<void>;
   syncing: boolean;
   checking: boolean;
-  hasPending: boolean;
+  pendingCount: number;
   refreshing: Set<string>;
   refreshErrors: Map<string, string>;
   progress: { fetched: number; total: number } | null;
@@ -71,7 +70,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const { getAccessToken } = useAuth();
   const [syncing, setSyncing] = useState(false);
   const [checking, setChecking] = useState(false);
-  const [hasPending, setHasPending] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
   const [progress, setProgress] = useState<{ fetched: number; total: number } | null>(null);
   const [rateLimitWait, setRateLimitWait] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -82,8 +81,12 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [refreshing, setRefreshing] = useState<Set<string>>(new Set());
   const [refreshErrors, setRefreshErrors] = useState<Map<string, string>>(new Map());
   const cloudSync = useCloudSync();
+  // Cache from the last checkPending call so sync() can reuse the first page
+  // without a redundant API request.
+  const pendingCacheRef = useRef<{ raw: StravaActivityResponse[]; fetchedAt: number } | null>(null);
+  const PENDING_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-  const sync = useCallback(async () => {
+  const runSync = useCallback(async (full: boolean) => {
     setSyncing(true);
     setError(null);
     setProgress(null);
@@ -92,19 +95,23 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     try {
       const token = await getAccessToken();
 
-      const lastFullSync = localStorage.getItem(LAST_FULL_SYNC_KEY);
-      const needsFullSync =
-        !lastSync ||
-        !lastFullSync ||
-        Date.now() - new Date(lastFullSync).getTime() > FULL_SYNC_INTERVAL_MS;
+      // Full sync: fetch everything (no after), then delete stale local entries.
+      // Incremental sync: fetch only what's new since last sync.
+      const afterEpoch = full ? undefined : computeAfterEpoch(lastSync);
 
-      const afterEpoch = needsFullSync ? undefined : computeAfterEpoch(lastSync);
+      // For incremental syncs, reuse activities already fetched during
+      // checkPending if the cache is fresh, saving one API call.
+      const cache = full ? null : pendingCacheRef.current;
+      const cacheAge = cache ? Date.now() - cache.fetchedAt : Infinity;
+      const prefetched = cache && cacheAge < PENDING_CACHE_TTL_MS ? cache.raw : undefined;
+      pendingCacheRef.current = null;
 
       const activities = await fetchAllActivities(
         token,
         afterEpoch,
         (fetched) => setProgress({ fetched, total: 0 }),
-        (waitSeconds) => setRateLimitWait(waitSeconds)
+        (waitSeconds) => setRateLimitWait(waitSeconds),
+        prefetched
       );
 
       await db.transaction("rw", db.activities, async () => {
@@ -113,7 +120,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           await db.activities.put(applyActivityUpsert(activity, existing));
         }
 
-        if (needsFullSync) {
+        // On a full sync (or the very first sync), remove activities no longer
+        // on Strava.
+        if (full || !lastSync) {
           const stravaIds = new Set(activities.map((a) => a.stravaId));
           const localIds = await db.activities.toCollection().primaryKeys() as string[];
           const toDelete = localIds.filter((id) => !stravaIds.has(id));
@@ -123,14 +132,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         }
       });
 
-      if (needsFullSync) {
-        localStorage.setItem(LAST_FULL_SYNC_KEY, new Date().toISOString());
-      }
-
       const now = new Date().toISOString();
       localStorage.setItem(LAST_SYNC_KEY, now);
       setLastSync(now);
-      setHasPending(false);
+      setPendingCount(0);
 
       // If cloud sync is enabled, re-apply cloud overrides now that the DB is
       // populated. This matters on a new device where the initial pull was a
@@ -151,7 +156,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       setProgress(null);
       setRateLimitWait(null);
     }
-  }, [getAccessToken, lastSync]);
+  }, [getAccessToken, lastSync, cloudSync]);
+
+  const sync = useCallback(() => runSync(false), [runSync]);
+  const fullSync = useCallback(() => runSync(true), [runSync]);
 
   const checkPending = useCallback(async () => {
     const lastCheck = localStorage.getItem(CHECK_COOLDOWN_KEY);
@@ -164,8 +172,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       const afterEpoch = lastSync
         ? Math.floor(new Date(lastSync).getTime() / 1000)
         : 0;
-      const pending = await hasNewActivities(token, afterEpoch);
-      setHasPending(pending);
+      const raw = await fetchNewActivities(token, afterEpoch);
+      // Cache the raw response so sync() can reuse it as the first page.
+      pendingCacheRef.current = { raw, fetchedAt: Date.now() };
+      setPendingCount(raw.length);
       localStorage.setItem(CHECK_COOLDOWN_KEY, new Date().toISOString());
     } catch {
       // silently ignore — network or auth failure
@@ -206,7 +216,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <SyncContext.Provider
-      value={{ sync, checkPending, refreshActivity, syncing, checking, hasPending, refreshing, refreshErrors, progress, geocoding, rateLimitWait, error, lastSync, cloudSync }}
+      value={{ sync, fullSync, checkPending, refreshActivity, syncing, checking, pendingCount, refreshing, refreshErrors, progress, geocoding, rateLimitWait, error, lastSync, cloudSync }}
     >
       {children}
     </SyncContext.Provider>

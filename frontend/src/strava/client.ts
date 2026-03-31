@@ -19,6 +19,21 @@ const STRAVA_API = "https://www.strava.com/api/v3";
 const PAGE_SIZE = 200;
 const MAX_RETRY_WAIT_SECONDS = 300;
 
+const CYCLING_SPORT_TYPES = new Set([
+  "Ride",
+  "VirtualRide",
+  "EBikeRide",
+  "EMountainBikeRide",
+  "GravelRide",
+  "MountainBikeRide",
+  "Handcycle",
+  "Velomobile",
+]);
+
+function isCyclingActivity(raw: StravaActivityResponse): boolean {
+  return CYCLING_SPORT_TYPES.has(raw.sport_type) || CYCLING_SPORT_TYPES.has(raw.type);
+}
+
 export function mapStravaActivity(raw: StravaActivityResponse): Activity {
   const distanceKm = raw.distance / 1000;
   const classification = classifyActivity({
@@ -57,21 +72,22 @@ export function mapStravaActivity(raw: StravaActivityResponse): Activity {
 }
 
 /**
- * Lightweight check: returns true if Strava has any activities
- * newer than `afterEpoch`. Fetches only 1 result.
+ * Fetches up to one page of activities newer than `afterEpoch`.
+ * Returns the raw responses so callers can reuse them (avoiding a double-fetch
+ * when the result is immediately passed into fetchAllActivities).
  */
-export async function hasNewActivities(
+export async function fetchNewActivities(
   accessToken: string,
   afterEpoch: number
-): Promise<boolean> {
-  const params = new URLSearchParams({ per_page: "1", after: String(afterEpoch) });
+): Promise<StravaActivityResponse[]> {
+  const params = new URLSearchParams({ per_page: String(PAGE_SIZE), after: String(afterEpoch) });
   const response = await fetch(
     `${STRAVA_API}/athlete/activities?${params.toString()}`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
-  if (!response.ok) return false;
+  if (!response.ok) return [];
   const data = await response.json();
-  return Array.isArray(data) && data.length > 0;
+  return Array.isArray(data) ? data.filter(isCyclingActivity) : [];
 }
 
 async function fetchPage(
@@ -112,12 +128,23 @@ export async function fetchAllActivities(
   accessToken: string,
   after?: number,
   onProgress?: (fetched: number, page: number) => void,
-  onRateLimit?: (waitSeconds: number) => void
+  onRateLimit?: (waitSeconds: number) => void,
+  prefetched?: StravaActivityResponse[]
 ): Promise<Activity[]> {
-  const activities: Activity[] = [];
-  let page = 1;
+  const activities: Activity[] = prefetched ? prefetched.map(mapStravaActivity) : [];
 
-  while (true) {
+  // If we have a full prefetched first page there may be more; start at page 2.
+  // If the prefetched page was partial (< PAGE_SIZE) we already have everything.
+  let page: number | null;
+  if (prefetched === undefined) {
+    page = 1;
+  } else {
+    // Report the prefetched activities as page 1 so progress is visible.
+    onProgress?.(activities.length, 1);
+    page = prefetched.length === PAGE_SIZE ? 2 : null;
+  }
+
+  while (page !== null) {
     const params = new URLSearchParams({
       page: String(page),
       per_page: String(PAGE_SIZE),
@@ -127,7 +154,7 @@ export async function fetchAllActivities(
     }
 
     const data = await fetchPage(accessToken, params, onRateLimit);
-    activities.push(...data.map(mapStravaActivity));
+    activities.push(...data.filter(isCyclingActivity).map(mapStravaActivity));
     onProgress?.(activities.length, page);
 
     if (data.length < PAGE_SIZE) {
