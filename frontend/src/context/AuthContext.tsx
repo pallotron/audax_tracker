@@ -3,6 +3,7 @@ import {
   useContext,
   useState,
   useCallback,
+  useRef,
   type ReactNode,
 } from "react";
 import {
@@ -27,6 +28,14 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [tokens, setTokens] = useState<StravaTokens | null>(() => loadTokens());
+  // Keep a ref so getAccessToken always reads the latest tokens without
+  // needing to be recreated on every state change (avoids stale closures in
+  // callbacks that capture getAccessToken, e.g. cloud sync debounced push).
+  const tokensRef = useRef(tokens);
+  tokensRef.current = tokens;
+  // Deduplicate concurrent refresh calls — reuse the in-flight promise instead
+  // of issuing a second refresh with an already-rotated refresh token.
+  const refreshPromiseRef = useRef<Promise<string> | null>(null);
 
   const login = useCallback((newTokens: StravaTokens) => {
     saveTokens(newTokens);
@@ -39,20 +48,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getAccessToken = useCallback(async (): Promise<string> => {
-    if (!tokens) {
+    const current = tokensRef.current;
+    if (!current) {
       throw new Error("Not authenticated");
     }
-    if (!isTokenExpired(tokens)) {
-      return tokens.access_token;
+    if (!isTokenExpired(current)) {
+      return current.access_token;
     }
-    const refreshed = await refreshAccessToken(
-      config.oauthWorkerUrl,
-      tokens.refresh_token
-    );
-    saveTokens(refreshed);
-    setTokens(refreshed);
-    return refreshed.access_token;
-  }, [tokens]);
+    // If a refresh is already in flight, wait for it rather than issuing a
+    // second one that would fail with a rotated refresh token.
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
+    }
+    const promise = refreshAccessToken(config.oauthWorkerUrl, current.refresh_token)
+      .then((refreshed) => {
+        saveTokens(refreshed);
+        setTokens(refreshed);
+        return refreshed.access_token;
+      })
+      .finally(() => {
+        refreshPromiseRef.current = null;
+      });
+    refreshPromiseRef.current = promise;
+    return promise;
+  }, []); // stable — reads tokens via ref, never needs to be recreated
 
   return (
     <AuthContext.Provider
