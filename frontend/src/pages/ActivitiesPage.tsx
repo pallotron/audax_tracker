@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, bulkConfirm, bulkSetType, bulkSetDnf, bulkExcludeFromAwards, bulkIncludeInAwards, type Activity } from "../db/database";
+import { db, bulkConfirm, bulkSetType, bulkSetDnf, bulkExcludeFromAwards, bulkIncludeInAwards, bulkRemove, type Activity } from "../db/database";
 import type { EventType } from "../db/types";
 import { useSyncContext } from "../context/SyncContext";
 import { ActivityRow } from "../components/ActivityRow";
@@ -351,6 +351,11 @@ export default function ActivitiesPage() {
     setSelectedIds(new Set());
   }, [selectedIds, refreshActivity]);
 
+  const handleBulkRemove = useCallback(async () => {
+    await bulkRemove(Array.from(selectedIds));
+    setSelectedIds(new Set());
+  }, [selectedIds]);
+
   const handleEditingChange = useCallback((id: string, editing: boolean) => {
     setEditingId(editing ? id : null);
   }, []);
@@ -678,6 +683,7 @@ export default function ActivitiesPage() {
           onExcludeFromAwards={handleBulkExcludeFromAwards}
           onIncludeInAwards={handleBulkIncludeInAwards}
           onRefresh={handleBulkRefresh}
+          onRemove={handleBulkRemove}
           onClear={clearSelection}
         />
       </div>
