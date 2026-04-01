@@ -210,6 +210,11 @@ export async function bulkIncludeInAwards(ids: string[]): Promise<void> {
   });
 }
 
+export async function bulkRemove(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  await db.activities.bulkDelete(ids);
+}
+
 export async function setExcludeFromAwards(id: string, exclude: boolean): Promise<void> {
   await db.activities.update(id, { excludeFromAwards: exclude });
 }

@@ -26,10 +26,11 @@ interface BulkActionBarProps {
   onExcludeFromAwards: () => void;
   onIncludeInAwards: () => void;
   onRefresh: () => void;
+  onRemove: () => void;
   onClear: () => void;
 }
 
-export function BulkActionBar({ selectedCount, onConfirm, onSetType, onSetDnf, onExcludeFromAwards, onIncludeInAwards, onRefresh, onClear }: BulkActionBarProps) {
+export function BulkActionBar({ selectedCount, onConfirm, onSetType, onSetDnf, onExcludeFromAwards, onIncludeInAwards, onRefresh, onRemove, onClear }: BulkActionBarProps) {
   const [bulkEventType, setBulkEventType] = useState<EventType>("BRM200");
 
   if (selectedCount === 0) return null;
@@ -96,6 +97,12 @@ export function BulkActionBar({ selectedCount, onConfirm, onSetType, onSetDnf, o
           className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
         >
           ↺ Refresh from Strava
+        </button>
+        <button
+          onClick={onRemove}
+          className="rounded-md bg-red-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-800"
+        >
+          Remove
         </button>
         <button
           onClick={onClear}
