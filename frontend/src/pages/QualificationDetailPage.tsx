@@ -5,13 +5,10 @@ import { UnconfirmedRidesNotice } from "../components/UnconfirmedRidesNotice";
 import {
   checkAcp5000,
   checkAcp10000,
-  findBestWindow,
-  ACP_QUALIFYING_TYPES,
   type QualifyingActivity,
   type Requirement,
   type ExpiringEvent,
 } from "../qualification/tracker";
-import { isAwardEligible } from "../classification/classifier";
 import { ProgressBar } from "../components/ProgressBar";
 import { EventTypeBadge, ClassificationLegend } from "../components/EventTypeBadge";
 import { formatDate } from "../utils/date";
@@ -184,11 +181,10 @@ export default function QualificationDetailPage() {
     ? checkAcp5000(qualActivities)
     : checkAcp10000(qualActivities);
 
-  const eligibleActivities = qualActivities.filter(
-    (a) => isAwardEligible(a) && a.eventType && (ACP_QUALIFYING_TYPES as readonly string[]).includes(a.eventType)
-  );
-
-  const windowActivities = findBestWindow(eligibleActivities, windowYears);
+  // Use the exact window computed by checkAcp5000/checkAcp10000 (uses score-based
+  // window selection that boosts Fleche/PBP-containing windows, unlike findBestWindow
+  // which only maximises km).
+  const windowActivities = status.windowActivities;
 
   // Derive window dates from the activities in the best window
   const windowDates =
@@ -333,7 +329,7 @@ export default function QualificationDetailPage() {
       {status.expiringEvents.length > 0 && (
         <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4">
           <h3 className="mb-2 text-sm font-semibold text-yellow-800">
-            Events expiring within 6 months
+            Events expiring within 12 months
           </h3>
           <ul className="space-y-1">
             {status.expiringEvents.map((ev: ExpiringEvent) => (
