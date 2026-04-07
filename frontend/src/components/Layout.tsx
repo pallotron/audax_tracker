@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useSyncContext } from "../context/SyncContext";
@@ -15,7 +15,15 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 export default function Layout() {
   const { isAuthenticated, tokens, logout } = useAuth();
-  const { geocoding, cloudSync, sync, fullSync, syncing, checking, pendingCount, progress, rateLimitWait, lastSync } = useSyncContext();
+  const { geocoding, cloudSync, sync, fullSync, syncing, checking, pendingCount, progress, rateLimitWait, lastSync, checkPending } = useSyncContext();
+  const didCheckRef = useRef(false);
+  useEffect(() => {
+    if (!didCheckRef.current) {
+      didCheckRef.current = true;
+      checkPending();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const hasPending = pendingCount > 0;
   const [showConsentDialog, setShowConsentDialog] = useState(false);
   const [showDisableDialog, setShowDisableDialog] = useState(false);
