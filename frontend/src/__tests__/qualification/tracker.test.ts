@@ -109,6 +109,30 @@ describe("checkAcp5000", () => {
     expect(result.distance.targetKm).toBe(5000);
   });
 
+  it("qualifies when fleche falls after the maximum-km window but within a valid 4-year window", () => {
+    // Scenario: BRM series + PBP cluster around 2022-2025 giving a big km window,
+    // but the Flèche is completed in early 2026 (outside the best-km window).
+    // A window anchored at the Flèche should still find all other requirements.
+    const activities = [
+      makeActivity({ eventType: "BRM200", distance: 200, date: "2022-06-01" }),
+      makeActivity({ eventType: "BRM300", distance: 300, date: "2023-03-01" }),
+      makeActivity({ eventType: "BRM400", distance: 408, date: "2023-05-01" }),
+      makeActivity({ eventType: "BRM600", distance: 601, date: "2023-04-01" }),
+      makeActivity({ eventType: "BRM1000", distance: 1002, date: "2025-05-01" }),
+      makeActivity({ eventType: "PBP", distance: 1224, date: "2023-08-01" }),
+      makeActivity({ eventType: "Fleche", distance: 387, date: "2026-04-03" }),
+      // Extra km rides to ensure the flèche window reaches 5000 km
+      makeActivity({ eventType: "BRM1000", distance: 1000, date: "2024-06-01" }),
+      makeActivity({ eventType: "BRM200", distance: 207, date: "2025-01-01" }),
+    ];
+    const result = checkAcp5000(activities);
+    expect(result.fleche.met).toBe(true);
+    expect(result.brmSeries.met).toBe(true);
+    expect(result.pbp.met).toBe(true);
+    expect(result.distance.met).toBe(true);
+    expect(result.qualified).toBe(true);
+  });
+
   it("enforces 4-year window (BRM200 from 2020 outside window ending 2025)", () => {
     const activities = [
       makeActivity({ eventType: "BRM200", distance: 200, date: "2020-01-01" }),
