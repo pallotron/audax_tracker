@@ -98,7 +98,7 @@ export interface BrevetKmStatus {
 export function checkBrevetKm(activities: AwardsActivity[]): Map<string, BrevetKmStatus> {
   const result = new Map<string, BrevetKmStatus>();
   for (const a of activities) {
-    if (!isAwardEligible(a) || !BREVET_TYPES.includes(a.eventType as EventType)) continue;
+    if (a.dnf || a.excludeFromAwards || !BREVET_TYPES.includes(a.eventType as EventType)) continue;
     const season = activitySeason(a.date);
     if (!result.has(season)) {
       result.set(season, { total: 0, activities: [] });

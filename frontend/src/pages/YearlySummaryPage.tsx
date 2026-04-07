@@ -14,7 +14,7 @@ export default function YearlySummaryPage() {
   const activities = useLiveQuery(() => db.activities.toArray());
 
   const audaxActivities = useMemo(
-    () => (activities ?? []).filter((a) => a.eventType !== null),
+    () => (activities ?? []).filter((a) => a.eventType !== null && !a.dnf),
     [activities],
   );
 
@@ -362,6 +362,8 @@ export default function YearlySummaryPage() {
                           <EventTypeBadge
                             eventType={activity.eventType}
                             source={activity.classificationSource}
+                            needsConfirmation={activity.needsConfirmation && !activity.manualOverride}
+                            dnf={activity.dnf}
                           />
                         </span>
                       </td>

@@ -459,14 +459,23 @@ describe("getInternationalRides", () => {
 });
 
 describe("checkBrevetKm — award eligibility", () => {
-  it("excludes unconfirmed activities from season km", () => {
+  it("counts auto-distance (unconfirmed) activities — classification source is irrelevant for Brevet 2000/5000", () => {
     const activities = [
       makeActivity({ eventType: "BRM200", distance: 200, date: "2025-06-01", classificationSource: "auto-distance" }),
       makeActivity({ eventType: "BRM200", distance: 200, date: "2025-06-15" }),
     ];
     const result = checkBrevetKm(activities);
     const season = activitySeason("2025-06-01");
-    // Only the confirmed activity should count
+    expect(result.get(season)?.total).toBe(400);
+  });
+
+  it("excludes activities with excludeFromAwards=true", () => {
+    const activities = [
+      makeActivity({ eventType: "BRM200", distance: 200, date: "2025-06-01", excludeFromAwards: true }),
+      makeActivity({ eventType: "BRM200", distance: 200, date: "2025-06-15" }),
+    ];
+    const result = checkBrevetKm(activities);
+    const season = activitySeason("2025-06-01");
     expect(result.get(season)?.total).toBe(200);
   });
 });
