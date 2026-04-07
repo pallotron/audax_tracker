@@ -158,6 +158,122 @@ export function findBestWindow(
 }
 
 /**
+ * Finds the best (max km) window of windowYears that contains the given anchor date.
+ * Returns an empty array if no valid window exists.
+ */
+function findBestWindowContaining(
+  activities: QualifyingActivity[],
+  windowYears: number,
+  anchorDate: Date
+): QualifyingActivity[] {
+  if (activities.length === 0) return [];
+
+  const sorted = [...activities].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+
+  const timestamps = sorted.map((a) => new Date(a.date).getTime());
+  const windowMs = windowYears * 365.25 * 24 * 60 * 60 * 1000;
+  const anchorTs = anchorDate.getTime();
+
+  let bestTotal = -1;
+  let bestStart = 0;
+  let bestEnd = 0;
+
+  for (let i = 0; i < sorted.length; i++) {
+    const windowStart = timestamps[i];
+    const windowEnd = windowStart + windowMs;
+
+    // The window must contain the anchor date
+    if (windowStart > anchorTs || windowEnd <= anchorTs) continue;
+
+    // Find the last index within the window
+    let lo = i;
+    let hi = sorted.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (timestamps[mid] < windowEnd) lo = mid;
+      else hi = mid - 1;
+    }
+
+    let total = 0;
+    for (let j = i; j <= lo; j++) {
+      total += sorted[j].distance;
+    }
+
+    if (total > bestTotal) {
+      bestTotal = total;
+      bestStart = i;
+      bestEnd = lo;
+    }
+  }
+
+  return bestTotal >= 0 ? sorted.slice(bestStart, bestEnd + 1) : [];
+}
+
+/**
+ * Scores a candidate window for ACP R5000 qualification.
+ * Higher score = better. Requirements met dominate over raw km.
+ */
+function scoreWindow5000(windowActs: QualifyingActivity[]): number {
+  const totalKm = windowActs.reduce((s, a) => s + a.distance, 0);
+  let score = 0;
+  if (checkBrmSeries(windowActs).met) score += 1_000_000_000;
+  if (windowActs.some((a) => a.eventType === "PBP")) score += 1_000_000_000;
+  if (windowActs.some((a) => a.eventType === "Fleche")) score += 1_000_000_000;
+  if (totalKm >= 5000) score += 1_000_000_000;
+  return score + totalKm;
+}
+
+/**
+ * Scores a candidate window for ACP R10000 qualification.
+ * Higher score = better. Requirements met dominate over raw km.
+ */
+function scoreWindow10000(windowActs: QualifyingActivity[]): number {
+  const totalKm = windowActs.reduce((s, a) => s + a.distance, 0);
+  let score = 0;
+  if (countBrmSeries(windowActs) >= 2) score += 1_000_000_000;
+  if (windowActs.some((a) => a.eventType === "PBP")) score += 1_000_000_000;
+  if (windowActs.some((a) => a.eventType === "Fleche")) score += 1_000_000_000;
+  if (windowActs.some((a) => a.eventType === "RM1200+")) score += 1_000_000_000;
+  if (
+    windowActs.some(
+      (a) =>
+        (a.eventType === "BRM600" || a.eventType === "SR600") &&
+        a.elevationGain >= MOUNTAIN_600_ELEVATION
+    )
+  )
+    score += 1_000_000_000;
+  if (totalKm >= 10000) score += 1_000_000_000;
+  return score + totalKm;
+}
+
+/**
+ * Picks the best candidate window for ACP qualification by trying the global
+ * best-km window plus windows anchored at each unique required event (Flèche, PBP).
+ * This ensures that a qualifying window is found even when unique events fall
+ * outside the maximum-km window.
+ */
+function pickBestCandidateWindow(
+  eligible: QualifyingActivity[],
+  windowYears: number,
+  scoreFn: (w: QualifyingActivity[]) => number
+): QualifyingActivity[] {
+  const candidates: QualifyingActivity[][] = [findBestWindow(eligible, windowYears)];
+
+  for (const eventType of ["Fleche", "PBP"] as const) {
+    for (const event of eligible.filter((a) => a.eventType === eventType)) {
+      const anchored = findBestWindowContaining(eligible, windowYears, new Date(event.date));
+      if (anchored.length > 0) candidates.push(anchored);
+    }
+  }
+
+  return candidates.reduce((best, curr) =>
+    scoreFn(curr) > scoreFn(best) ? curr : best
+  );
+}
+
+/**
  * Checks if all 5 BRM distances are present in the given activities.
  */
 export function checkBrmSeries(activities: QualifyingActivity[]): {
@@ -281,7 +397,7 @@ export function checkAcp5000(
   const eligible = activities.filter(
     (a) => isAwardEligible(a) && ACP_QUALIFYING_TYPES.includes(a.eventType as NonNullable<EventType>)
   );
-  const windowActivities = findBestWindow(eligible, 4);
+  const windowActivities = pickBestCandidateWindow(eligible, 4, scoreWindow5000);
   const totalKm = windowActivities.reduce((sum, a) => sum + a.distance, 0);
 
   const series = checkBrmSeries(windowActivities);
@@ -563,7 +679,7 @@ export function checkAcp10000(
   const eligible = activities.filter(
     (a) => isAwardEligible(a) && ACP_QUALIFYING_TYPES.includes(a.eventType as NonNullable<EventType>)
   );
-  const windowActivities = findBestWindow(eligible, 6);
+  const windowActivities = pickBestCandidateWindow(eligible, 6, scoreWindow10000);
   const totalKm = windowActivities.reduce((sum, a) => sum + a.distance, 0);
 
   const sortedByDate = [...windowActivities].sort(
