@@ -193,7 +193,7 @@ export default function AwardsPage() {
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-gray-800">Randonneur 5000</h3>
               {status5000.qualified ? (
-                <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">Qualified ✓</span>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800"><span className="text-base leading-none">🏆</span> Qualified ✓</span>
               ) : (
                 <span className="rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
                   {Math.round(status5000.totalKm).toLocaleString()} / 5000 km
@@ -211,7 +211,7 @@ export default function AwardsPage() {
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-gray-800">Randonneur 10000</h3>
               {status10000.qualified ? (
-                <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">Qualified ✓</span>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800"><span className="text-base leading-none">🏆</span> Qualified ✓</span>
               ) : (
                 <span className="rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
                   {Math.round(status10000.totalKm).toLocaleString()} / 10000 km
@@ -271,6 +271,17 @@ export default function AwardsPage() {
                   <TrophyBadge key={season} label={`${season} (${Math.round(brevetKm.get(season)!.total)} km)`} activities={brevetKm.get(season)?.activities} />
                 ))
             )}
+            {allSeasons.filter((s) => { const t = brevetKm.get(s)?.total ?? 0; return t > 0 && t < 2000; }).length > 0 && (
+              <div className="w-full mt-1 flex flex-wrap gap-1">
+                {allSeasons
+                  .filter((s) => { const t = brevetKm.get(s)?.total ?? 0; return t > 0 && t < 2000; })
+                  .map((season) => (
+                    <span key={season} className="text-xs text-gray-400 italic">
+                      {season}: {Math.round(brevetKm.get(season)!.total)} km
+                    </span>
+                  ))}
+              </div>
+            )}
           </AwardRow>
 
           <AwardRow
@@ -285,6 +296,17 @@ export default function AwardsPage() {
                 .map((season) => (
                   <TrophyBadge key={season} label={`${season} (${Math.round(brevetKm.get(season)!.total)} km)`} activities={brevetKm.get(season)?.activities} />
                 ))
+            )}
+            {allSeasons.filter((s) => { const t = brevetKm.get(s)?.total ?? 0; return t > 0 && t < 5000; }).length > 0 && (
+              <div className="w-full mt-1 flex flex-wrap gap-1">
+                {allSeasons
+                  .filter((s) => { const t = brevetKm.get(s)?.total ?? 0; return t > 0 && t < 5000; })
+                  .map((season) => (
+                    <span key={season} className="text-xs text-gray-400 italic">
+                      {season}: {Math.round(brevetKm.get(season)!.total)} km
+                    </span>
+                  ))}
+              </div>
             )}
           </AwardRow>
 

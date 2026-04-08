@@ -56,6 +56,7 @@ export interface Acp5000Status {
   fleche: Requirement;
   distance: DistanceRequirement;
   expiringEvents: ExpiringEvent[];
+  windowActivities: QualifyingActivity[];
 }
 
 export interface Acp10000Status {
@@ -68,6 +69,7 @@ export interface Acp10000Status {
   fleche: Requirement;
   distance: DistanceRequirement;
   expiringEvents: ExpiringEvent[];
+  windowActivities: QualifyingActivity[];
 }
 
 const BRM_DISTANCES: NonNullable<EventType>[] = [
@@ -312,7 +314,7 @@ export function countBrmSeries(activities: QualifyingActivity[]): number {
  * Finds critical expiring events: events that, if they fall out of the
  * rolling window, would cause a currently-met requirement to become unmet.
  *
- * For each event expiring in the next 6 months, we check whether removing
+ * For each event expiring in the next 12 months, we check whether removing
  * it would break a requirement (e.g. losing the only PBP, or dropping
  * from 1 complete BRM series to 0).
  */
@@ -325,16 +327,16 @@ function findExpiringEvents(
   if (windowActivities.length === 0) return [];
 
   const now = new Date();
-  const sixMonthsFromNow = new Date(now);
-  sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
+  const twelveMonthsFromNow = new Date(now);
+  twelveMonthsFromNow.setMonth(twelveMonthsFromNow.getMonth() + 12);
 
-  // Find events expiring within 6 months
+  // Find events expiring within 12 months
   const expiring: { activity: QualifyingActivity; expiresAt: Date }[] = [];
   for (const a of windowActivities) {
     const activityDate = new Date(a.date);
     const expiresAt = new Date(activityDate);
     expiresAt.setFullYear(expiresAt.getFullYear() + windowYears);
-    if (expiresAt > now && expiresAt <= sixMonthsFromNow) {
+    if (expiresAt > now && expiresAt <= twelveMonthsFromNow) {
       expiring.push({ activity: a, expiresAt });
     }
   }
@@ -512,6 +514,7 @@ export function checkAcp5000(
     fleche,
     distance,
     expiringEvents: findExpiringEvents(windowActivities, 4, 1, "R5000"),
+    windowActivities,
   };
 }
 
@@ -834,5 +837,6 @@ export function checkAcp10000(
     fleche,
     distance,
     expiringEvents: findExpiringEvents(windowActivities, 6, 2, "R10000"),
+    windowActivities,
   };
 }

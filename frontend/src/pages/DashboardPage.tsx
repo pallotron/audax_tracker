@@ -173,11 +173,14 @@ export default function DashboardPage() {
 
       {/* Expiring events warnings */}
       {(() => {
-        const merged = mergeExpiringEvents(status5000.expiringEvents, status10000.expiringEvents);
+        const r5qualified = status5000.qualified;
+        const r10qualified = status10000.qualified;
+        const merged = mergeExpiringEvents(status5000.expiringEvents, status10000.expiringEvents)
+          .filter((ev) => ev.affects.some((a) => (a === "R5000" && !r5qualified) || (a === "R10000" && !r10qualified)));
         return merged.length > 0 ? (
           <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4">
             <h3 className="mb-2 text-sm font-semibold text-yellow-800">
-              Critical events expiring within 6 months
+              Critical events expiring within 12 months
             </h3>
             <ul className="space-y-1">
               {merged.map((ev) => (
