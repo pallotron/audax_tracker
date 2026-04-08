@@ -309,24 +309,8 @@ export default function QualificationDetailPage() {
         />
       </div>
 
-      {/* Requirements checklist */}
-      <div>
-        <h2 className="mb-3 text-lg font-semibold text-gray-900">
-          Requirements
-        </h2>
-        <div className="space-y-2">
-          {requirements.map((r) => (
-            <RequirementCard
-              key={r.label}
-              label={r.label}
-              requirement={r.requirement}
-            />
-          ))}
-        </div>
-      </div>
-
       {/* Expiring events warning */}
-      {status.expiringEvents.length > 0 && (
+      {!status.qualified && status.expiringEvents.length > 0 && (
         <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4">
           <h3 className="mb-2 text-sm font-semibold text-yellow-800">
             Events expiring within 12 months
@@ -349,6 +333,22 @@ export default function QualificationDetailPage() {
           </ul>
         </div>
       )}
+
+      {/* Requirements checklist */}
+      <div>
+        <h2 className="mb-3 text-lg font-semibold text-gray-900">
+          Requirements
+        </h2>
+        <div className="space-y-2">
+          {requirements.map((r) => (
+            <RequirementCard
+              key={r.label}
+              label={r.label}
+              requirement={r.requirement}
+            />
+          ))}
+        </div>
+      </div>
 
       {/* Completion timeline */}
       {requirements.some((r) => r.requirement.completedDate) && (
