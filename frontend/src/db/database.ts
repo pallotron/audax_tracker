@@ -30,8 +30,22 @@ export interface Activity {
   isNotableInternational: boolean;
 }
 
+export interface RiderProfile {
+  id: 1;
+  lastName: string;
+  firstName: string;
+  birthDate: string;   // dd/mm/yyyy — ACP format
+  address: string;
+  zipCode: string;
+  city: string;
+  country: string;
+  clubName: string;
+  acpCode: string;
+}
+
 export const db = new Dexie("AudaxTracker") as Dexie & {
   activities: EntityTable<Activity, "stravaId">;
+  profile: EntityTable<RiderProfile, "id">;
 };
 
 db.version(1).stores({
@@ -104,6 +118,11 @@ db.version(7).stores({
       activity.excludeFromAwards = false;
     }
   });
+});
+
+db.version(8).stores({
+  activities: "stravaId, date, eventType, type, startCountry, startRegion",
+  profile: "id",
 });
 
 /**
