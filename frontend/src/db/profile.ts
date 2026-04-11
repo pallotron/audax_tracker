@@ -15,6 +15,11 @@ export function isProfileComplete(profile: RiderProfile | undefined): boolean {
   return !!(
     profile.lastName.trim() &&
     profile.firstName.trim() &&
+    profile.birthDate.trim() &&
+    profile.address.trim() &&
+    profile.zipCode.trim() &&
+    profile.city.trim() &&
+    profile.country.trim() &&
     profile.clubName.trim() &&
     profile.acpCode.trim()
   );
