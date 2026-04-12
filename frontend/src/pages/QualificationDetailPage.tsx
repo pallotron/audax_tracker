@@ -1,4 +1,5 @@
-import { useParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type Activity } from "../db/database";
 import { UnconfirmedRidesNotice } from "../components/UnconfirmedRidesNotice";
@@ -8,7 +9,10 @@ import {
   type QualifyingActivity,
   type Requirement,
   type ExpiringEvent,
+  type Acp5000Status,
 } from "../qualification/tracker";
+import { getProfile, isProfileComplete, type RiderProfile } from "../db/profile";
+import { generateR5000Form } from "../forms/acpFormGenerator";
 import { ProgressBar } from "../components/ProgressBar";
 import { EventTypeBadge, ClassificationLegend } from "../components/EventTypeBadge";
 import { formatDate } from "../utils/date";
@@ -154,6 +158,12 @@ function RequirementCard({ label, requirement }: RequirementCardProps) {
 export default function QualificationDetailPage() {
   const { type } = useParams<{ type: string }>();
   const activities = useLiveQuery(() => db.activities.toArray());
+  const [profile, setProfile] = useState<RiderProfile | undefined>(undefined);
+  const [generating, setGenerating] = useState(false);
+
+  useEffect(() => {
+    getProfile().then(setProfile);
+  }, []);
 
   if (!activities) {
     return (
@@ -308,6 +318,36 @@ export default function QualificationDetailPage() {
           label="Distance progress"
         />
       </div>
+
+      {/* ACP Application Form download */}
+      {is5000 && status.qualified && (
+        <div className="rounded-lg bg-white p-4 shadow">
+          <h2 className="mb-2 text-sm font-semibold text-gray-800">ACP Application Form</h2>
+          {isProfileComplete(profile) ? (
+            <button
+              onClick={async () => {
+                setGenerating(true);
+                try {
+                  await generateR5000Form(profile!, status as Acp5000Status);
+                } finally {
+                  setGenerating(false);
+                }
+              }}
+              disabled={generating}
+              className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-50"
+            >
+              {generating ? "Generating…" : "Download R5000 Application Form"}
+            </button>
+          ) : (
+            <p className="text-sm text-gray-600">
+              <Link to="/profile" className="font-medium text-orange-600 hover:underline">
+                Complete your profile
+              </Link>{" "}
+              to generate this form.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Expiring events warning */}
       {!status.qualified && status.expiringEvents.length > 0 && (
