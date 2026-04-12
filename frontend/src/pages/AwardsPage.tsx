@@ -1,5 +1,5 @@
 import { useLiveQuery } from "dexie-react-hooks";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { db, type Activity } from "../db/database";
 import { UnconfirmedRidesNotice } from "../components/UnconfirmedRidesNotice";
@@ -16,6 +16,8 @@ import {
 } from "../awards/awards";
 import { checkAcp5000, checkAcp10000 } from "../qualification/tracker";
 import type { QualifyingActivity } from "../qualification/tracker";
+import { getProfile, isProfileComplete, type RiderProfile } from "../db/profile";
+import { generateR5000Form } from "../forms/acpFormGenerator";
 
 function toQualifying(a: Activity): QualifyingActivity {
   return {
@@ -149,6 +151,12 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 
 export default function AwardsPage() {
   const activities = useLiveQuery(() => db.activities.toArray(), []);
+  const [profile, setProfile] = useState<RiderProfile | undefined>(undefined);
+  const [generating5000, setGenerating5000] = useState(false);
+
+  useEffect(() => {
+    getProfile().then(setProfile);
+  }, []);
 
   if (!activities) {
     return <div className="text-gray-500">Loading…</div>;
@@ -186,22 +194,47 @@ export default function AwardsPage() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 
           {/* R5000 */}
-          <Link
-            to="/qualification/5000"
-            className="rounded-lg border border-gray-200 bg-white p-4 hover:border-orange-300 transition-colors"
-          >
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-gray-800">Randonneur 5000</h3>
               {status5000.qualified ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800"><span className="text-base leading-none">🏆</span> Qualified ✓</span>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                  <span className="text-base leading-none">🏆</span> Qualified ✓
+                </span>
               ) : (
                 <span className="rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
                   {Math.round(status5000.totalKm).toLocaleString()} / 5000 km
                 </span>
               )}
             </div>
-            <p className="mt-1 text-xs text-orange-600">View details →</p>
-          </Link>
+            <div className="mt-2 flex items-center gap-3">
+              <Link to="/qualification/5000" className="text-xs text-orange-600 hover:underline">
+                View details →
+              </Link>
+              {status5000.qualified && (
+                isProfileComplete(profile) ? (
+                  <button
+                    onClick={async () => {
+                      setGenerating5000(true);
+                      try {
+                        await generateR5000Form(profile!, status5000);
+                      } finally {
+                        setGenerating5000(false);
+                      }
+                    }}
+                    disabled={generating5000}
+                    className="text-xs font-medium text-orange-600 hover:underline disabled:opacity-50"
+                  >
+                    {generating5000 ? "Generating…" : "Download application form"}
+                  </button>
+                ) : (
+                  <Link to="/profile" className="text-xs text-gray-400 hover:underline">
+                    Complete profile to download form
+                  </Link>
+                )
+              )}
+            </div>
+          </div>
 
           {/* R10000 */}
           <Link

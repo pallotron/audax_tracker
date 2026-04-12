@@ -13,6 +13,7 @@ import QualificationDetailPage from "./pages/QualificationDetailPage";
 import AboutPage from "./pages/AboutPage";
 import RrtyPage from "./pages/RrtyPage";
 import AwardsPage from "./pages/AwardsPage";
+import ProfilePage from "./pages/ProfilePage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -82,6 +83,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <AwardsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
             </ProtectedRoute>
           }
         />
