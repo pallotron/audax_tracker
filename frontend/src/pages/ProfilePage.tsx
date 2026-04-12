@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getProfile, saveProfile, type RiderProfile } from "../db/profile";
+import { getProfile, saveProfile } from "../db/profile";
 
 const EMPTY_FORM = {
   lastName: "",
