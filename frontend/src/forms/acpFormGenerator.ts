@@ -94,8 +94,22 @@ export function buildR5000TemplateData(
       .map((a) => a!.stravaId),
   );
 
-  // Balance rides — activities not used in mandatory slots
-  const balanceActivities = windowActivities.filter((a) => !mandatoryIds.has(a.stravaId));
+  // Balance rides — activities not used in mandatory slots, capped at 5000 km total
+  const allBalanceActivities = windowActivities.filter((a) => !mandatoryIds.has(a.stravaId));
+
+  const mandatoryKm = [brm200, brm300, brm400, brm600, brm1000, pbp, fleche]
+    .filter(Boolean)
+    .reduce((sum, a) => sum + a!.distance, 0);
+  const balanceBudgetKm = Math.max(0, 5000 - mandatoryKm);
+
+  let balanceAccumulatedKm = 0;
+  const balanceActivities = allBalanceActivities
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .filter((a) => {
+      if (balanceAccumulatedKm >= balanceBudgetKm) return false;
+      balanceAccumulatedKm += a.distance;
+      return true;
+    });
 
   const brmTypes: EventType[] = ["BRM200", "BRM300", "BRM400", "BRM600", "BRM1000", "SR600"];
 
