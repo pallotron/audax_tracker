@@ -309,11 +309,11 @@ export default function QualificationDetailPage() {
             </span>
           )}
           <span className="text-sm text-gray-600">
-            {Math.round(status.totalKm).toLocaleString()} km total
+            {Math.min(Math.round(status.totalKm), targetKm).toLocaleString()} km total
           </span>
         </div>
         <ProgressBar
-          current={Math.round(status.totalKm)}
+          current={Math.min(Math.round(status.totalKm), targetKm)}
           target={targetKm}
           label="Distance progress"
         />
