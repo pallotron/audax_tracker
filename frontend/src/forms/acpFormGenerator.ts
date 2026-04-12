@@ -122,6 +122,9 @@ export function buildR5000TemplateData(
   const traceRides = balanceActivities.filter((a) => a.eventType === "TraceVelocio").map(toRideRow);
   const arrowRides: RideRow[] = []; // National Arrow not in app event types
 
+  // Total km = only the rides actually included in the form (mandatory + capped balance)
+  const formTotalKm = mandatoryKm + balanceActivities.reduce((sum, a) => sum + a.distance, 0);
+
   // Window date range
   const sortedByDate = [...windowActivities].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
@@ -162,7 +165,7 @@ export function buildR5000TemplateData(
     flecheRides,
     traceRides,
     arrowRides,
-    totalKm: `${Math.round(totalKm)} km`,
+    totalKm: `${Math.round(formTotalKm)} km`,
   };
 }
 

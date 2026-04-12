@@ -128,8 +128,15 @@ describe("buildR5000TemplateData", () => {
     expect(data.lastEventDate).toBe("10/01/2024");
   });
 
-  it("formats totalKm as rounded string with km suffix", () => {
-    const data = buildR5000TemplateData(profile, [], 5123.7);
-    expect(data.totalKm).toBe("5124 km");
+  it("totalKm reflects only activities included in the form, rounded with km suffix", () => {
+    // totalKm is computed from mandatory slots + capped balance, not the raw status total
+    const activities = [
+      makeActivity({ stravaId: "1", eventType: "BRM200", distance: 208 }),
+      makeActivity({ stravaId: "2", eventType: "BRM300", distance: 305.7, date: "2023-07-01T00:00:00.000Z" }),
+    ];
+    const data = buildR5000TemplateData(profile, activities, 99999);
+    // BRM200 fills mandatory slot (208 km), BRM300 fills mandatory slot (305.7 km)
+    // No balance rides needed. Total = 208 + 305.7 = 513.7 → rounded to 514
+    expect(data.totalKm).toBe("514 km");
   });
 });
