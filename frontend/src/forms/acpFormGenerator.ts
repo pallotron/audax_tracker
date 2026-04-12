@@ -100,7 +100,9 @@ export function buildR5000TemplateData(
   const mandatoryKm = [brm200, brm300, brm400, brm600, brm1000, pbp, fleche]
     .filter(Boolean)
     .reduce((sum, a) => sum + a!.distance, 0);
-  const balanceBudgetKm = Math.max(0, 5000 - mandatoryKm);
+  // Cap at 5200 km (5000 + one BRM 200 buffer) so GPS rounding vs official
+  // homologated distances still leaves the official total comfortably above 5000 km.
+  const balanceBudgetKm = Math.max(0, 5200 - mandatoryKm);
 
   let balanceAccumulatedKm = 0;
   const balanceActivities = allBalanceActivities
