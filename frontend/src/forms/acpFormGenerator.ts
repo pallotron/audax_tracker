@@ -64,7 +64,7 @@ function pickSlot(
 ): QualifyingActivity | null {
   return (
     activities
-      .filter((a) => types.includes(a.eventType))
+      .filter((a) => a.eventType !== null && types.includes(a.eventType))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0] ?? null
   );
 }
@@ -150,6 +150,10 @@ export function buildR5000TemplateData(
   };
 }
 
+/**
+ * Generates and downloads a pre-filled R5000 application form.
+ * @throws If the template asset cannot be fetched or the document fails to render.
+ */
 export async function generateR5000Form(
   profile: RiderProfile,
   status: Acp5000Status,
