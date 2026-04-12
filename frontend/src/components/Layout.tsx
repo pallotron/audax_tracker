@@ -140,6 +140,7 @@ export default function Layout() {
                     ["/dashboard", "Dashboard"],
                     ["/activities", "Activities"],
                     ["/awards", "Awards"],
+                    ["/profile", "Profile"],
                     ["/yearly", "Yearly Summary"],
                     ["/about", "About"],
                   ].map(([to, label]) => (
@@ -171,6 +172,7 @@ export default function Layout() {
                 <NavLink to="/dashboard" className={navLinkClass}>Dashboard</NavLink>
                 <NavLink to="/activities" className={navLinkClass}>Activities</NavLink>
                 <NavLink to="/awards" className={navLinkClass}>Awards</NavLink>
+                <NavLink to="/profile" className={navLinkClass}>Profile</NavLink>
                 <NavLink to="/yearly" className={navLinkClass}>Audax Yearly Summary</NavLink>
                 <NavLink to="/about" className={navLinkClass}>About</NavLink>
               </div>
