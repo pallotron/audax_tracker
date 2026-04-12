@@ -77,7 +77,6 @@ function slotFields(a: QualifyingActivity | null): { date: string; name: string;
 export function buildR5000TemplateData(
   profile: RiderProfile,
   windowActivities: QualifyingActivity[],
-  totalKm: number,
 ): R5000TemplateData {
   // Pick mandatory slots
   const brm200 = pickSlot(windowActivities, ["BRM200"]);
@@ -177,11 +176,7 @@ export async function generateR5000Form(
   profile: RiderProfile,
   status: Acp5000Status,
 ): Promise<void> {
-  const templateData = buildR5000TemplateData(
-    profile,
-    status.windowActivities,
-    status.totalKm,
-  );
+  const templateData = buildR5000TemplateData(profile, status.windowActivities);
 
   const response = await fetch(r5000TemplateUrl);
   const arrayBuffer = await response.arrayBuffer();
