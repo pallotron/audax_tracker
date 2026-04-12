@@ -230,8 +230,9 @@ export default function AboutPage() {
             own browser using IndexedDB — it never leaves your device and is never sent to any
             external server. This is your own data about your own activities, stored locally for
             your personal use only. Clearing your browser data will remove all stored activities.
-            Optionally, you can enable cloud sync (see below) to back up your annotations across
-            devices.
+            Personal information entered in your Profile (name, address, ACP code) is also stored
+            locally only and is explicitly excluded from cloud sync. Optionally, you can enable
+            cloud sync (see below) to back up your activity annotations across devices.
           </p>
         </section>
 
@@ -241,8 +242,9 @@ export default function AboutPage() {
             Optionally sync your activity annotations (event types, DNF flags, homologation numbers)
             across devices. The cloud sync stores <strong>only the annotations you create within
             Audax Tracker</strong> — your Strava activity data, names, distances, GPS tracks, and
-            personal information are never stored on any server. Stored data consists solely of
-            Strava activity IDs (used as references) and your own audax-specific metadata.
+            personal information (including anything entered in your Profile) are never stored on
+            any server. Stored data consists solely of Strava activity IDs (used as references) and
+            your own audax-specific metadata.
           </p>
           {isAuthenticated && (cloudSync.enabled ? (
             <button
